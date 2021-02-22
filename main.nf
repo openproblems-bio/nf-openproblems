@@ -238,6 +238,9 @@ process print_task_name {
     input:
     val(task_name) from ch_summary_tasks
 
+    output:
+    file(task_name_txt)
+
     script:
     task_name_txt = "${task_name}.txt"
     """
