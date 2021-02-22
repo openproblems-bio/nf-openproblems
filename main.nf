@@ -177,6 +177,7 @@ Channel.from(summary.collect{ [it.key, it.value] })
 /*
  * Parse software version numbers
  */
+/*
 process get_software_versions {
     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode,
         saveAs: { filename ->
@@ -198,13 +199,13 @@ process get_software_versions {
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
+*/
 
 /*
  * STEP 1 - Summary
  */
 process summary {
     tag "$name"
-    container "singlecellopenproblems/openproblems"
     label 'process_low'
     publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
@@ -251,24 +252,6 @@ ch_summary_tasks
 //     """
 // }
 
-/*
- * STEP 3 - Output Description HTML
- */
-process output_documentation {
-    publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
-
-    input:
-    file output_docs from ch_output_docs
-    file images from ch_output_docs_images
-
-    output:
-    file "results_description.html"
-
-    script:
-    """
-    markdown_to_html.py $output_docs -o results_description.html
-    """
-}
 
 /*
  * Completion e-mail notification
