@@ -57,21 +57,21 @@ if (params.help) {
  * SET UP CONFIGURATION VARIABLES
  */
 
-// Check if genome exists in the config file
-if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
-    exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
-}
+// // Check if genome exists in the config file
+// if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
+//     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
+// }
 
-// TODO nf-core: Add any reference files that are needed
-// Configurable reference genomes
-//
-// NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
-// If you want to use the channel below in a process, define the following:
-//   input:
-//   file fasta from ch_fasta
-//
-params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
-if (params.fasta) { ch_fasta = file(params.fasta, checkIfExists: true) }
+// // TODO nf-core: Add any reference files that are needed
+// // Configurable reference genomes
+// //
+// // NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
+// // If you want to use the channel below in a process, define the following:
+// //   input:
+// //   file fasta from ch_fasta
+// //
+// params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
+// if (params.fasta) { ch_fasta = file(params.fasta, checkIfExists: true) }
 
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name
@@ -97,29 +97,29 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 ch_output_docs = file("$projectDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$projectDir/docs/images/", checkIfExists: true)
 
-/*
- * Create a channel for input read files
- */
-if (params.input_paths) {
-    if (params.single_end) {
-        Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
-    } else {
-        Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
-    }
-} else {
-    Channel
-        .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
-        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
-        .into { ch_read_files_fastqc; ch_read_files_trimming }
-}
+// /*
+//  * Create a channel for input read files
+//  */
+// if (params.input_paths) {
+//     if (params.single_end) {
+//         Channel
+//             .from(params.input_paths)
+//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
+//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+//             .into { ch_read_files_fastqc; ch_read_files_trimming }
+//     } else {
+//         Channel
+//             .from(params.input_paths)
+//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
+//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+//             .into { ch_read_files_fastqc; ch_read_files_trimming }
+//     }
+// } else {
+//     Channel
+//         .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
+//         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
+//         .into { ch_read_files_fastqc; ch_read_files_trimming }
+// }
 
 // Header log info
 log.info nfcoreHeader()
@@ -200,56 +200,56 @@ process get_software_versions {
 }
 
 /*
- * STEP 1 - FastQC
+ * STEP 1 - Summary
  */
-process fastqc {
+process summary {
     tag "$name"
-    label 'process_medium'
-    publishDir "${params.outdir}/fastqc", mode: params.publish_dir_mode,
-        saveAs: { filename ->
-                      filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"
-                }
-
-    input:
-    set val(name), file(reads) from ch_read_files_fastqc
+    container "singlecellopenproblems/openproblems"
+    label 'process_low'
+    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
     output:
-    file "*_fastqc.{zip,html}" into ch_fastqc_results
+    file(tasks) into ch_summary_tasks
 
     script:
+    tasks = "tasks.txt"
     """
-    fastqc --quiet --threads $task.cpus $reads
+    openproblems-cli tasks > ${tasks}
     """
 }
 
-/*
- * STEP 2 - MultiQC
- */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
+ch_summary_tasks
+    .splitText()
+    .view()
 
-    input:
-    file (multiqc_config) from ch_multiqc_config
-    file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-    file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
-    file ('software_versions/*') from ch_software_versions_yaml.collect()
-    file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
+// /*
+//  * STEP 2 - MultiQC
+//  */
+// process multiqc {
+//     publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
 
-    output:
-    file "*multiqc_report.html" into ch_multiqc_report
-    file "*_data"
-    file "multiqc_plots"
+//     input:
+//     file (multiqc_config) from ch_multiqc_config
+//     file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
+//     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
+//     file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
+//     file ('software_versions/*') from ch_software_versions_yaml.collect()
+//     file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
 
-    script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-    custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-    """
-    multiqc -f $rtitle $rfilename $custom_config_file .
-    """
-}
+//     output:
+//     file "*multiqc_report.html" into ch_multiqc_report
+//     file "*_data"
+//     file "multiqc_plots"
+
+//     script:
+//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
+//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
+//     custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
+//     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+//     """
+//     multiqc -f $rtitle $rfilename $custom_config_file .
+//     """
+// }
 
 /*
  * STEP 3 - Output Description HTML
