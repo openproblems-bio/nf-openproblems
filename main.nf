@@ -225,6 +225,25 @@ ch_summary_tasks_txt
     .dump ( tag: "ch_summary_tasks" )
     .set { ch_summary_tasks }
 
+
+
+/*
+ * STEP 2 - Print task nmae
+ */
+process print_task_name {
+    tag "${task_name}"
+    label 'process_low'
+    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_summary_tasks
+
+    script:
+    """
+    echo ${task_name}
+    """
+}
+
 // /*
 //  * STEP 2 - MultiQC
 //  */
