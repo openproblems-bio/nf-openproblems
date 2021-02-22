@@ -233,14 +233,15 @@ ch_summary_tasks_txt
 process print_task_name {
     tag "${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/task_names", mode: params.publish_dir_mode
 
     input:
     val(task_name) from ch_summary_tasks
 
     script:
+    task_name_txt = "${task_name}.txt"
     """
-    echo ${task_name}
+    echo ${task_name} > ${task_name_txt}
     """
 }
 
