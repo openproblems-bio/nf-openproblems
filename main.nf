@@ -205,12 +205,12 @@ process get_software_versions {
  * STEP 1 - Summary
  */
 process summary {
-    tag "$name"
+    // tag "$name"
     label 'process_low'
     publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
     output:
-    file(tasks) into ch_summary_tasks
+    file(tasks) into ch_summary_tasks_txt
 
     script:
     tasks = "tasks.txt"
@@ -219,9 +219,11 @@ process summary {
     """
 }
 
-ch_summary_tasks
+ch_summary_tasks_txt
     .splitText()
-    .view()
+    .map { it -> it.replaceAll("\\n", "") }
+    .dump ( tag: "ch_summary_tasks" )
+    .set { ch_summary_tasks }
 
 // /*
 //  * STEP 2 - MultiQC
