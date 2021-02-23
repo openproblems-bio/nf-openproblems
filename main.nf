@@ -204,13 +204,13 @@ process get_software_versions {
 /*
  * STEP 1 - Summary
  */
-process summary {
+process list_tasks {
     // tag "$name"
     label 'process_low'
     publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
     output:
-    file(tasks) into ch_summary_tasks_txt
+    file(tasks) into ch_list_tasks
 
     script:
     tasks = "tasks.txt"
@@ -219,32 +219,49 @@ process summary {
     """
 }
 
-ch_summary_tasks_txt
+ch_list_tasks
     .splitText()
     .map { it -> it.replaceAll("\\n", "") }
-    .dump ( tag: "ch_summary_tasks" )
-    .set { ch_summary_tasks }
-
+    .into { ch_collate_task_names }
 
 
 /*
- * STEP 2 - Print task nmae
+ * STEP 2 - Collate task results
  */
-process print_task_name {
-    tag "${task_name}"
+process collate_task {
     label 'process_low'
-    publishDir "${params.outdir}/task_names", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/task/", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_summary_tasks
+    val(task_name) from ch_collate_task_names
 
     output:
-    file(task_name_txt)
+    file "${task_name}.task.json" into ch_collate_task_files
 
     script:
-    task_name_txt = "${task_name}.txt"
     """
-    echo ${task_name} > ${task_name_txt}
+    echo ${task_name} > ${task_name}.task.json
+    """
+}
+
+
+/*
+ * STEP 3 - Collate full results
+ */
+process summary {
+    label 'process_low'
+    publishDir "${params.outdir}/", mode: params.publish_dir_mode
+
+    input:
+    file(task) from ch_collate_task_files
+
+    output:
+    file(summary)
+
+    script:
+    summary = "results.json"
+    """
+    cat ${task} >> ${summary}
     """
 }
 
