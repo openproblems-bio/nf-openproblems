@@ -253,7 +253,7 @@ process summary {
     publishDir "${params.outdir}/", mode: params.publish_dir_mode
 
     input:
-    file(task) from ch_collate_task_files
+    file(task_file) from ch_collate_task_files
 
     output:
     file(summary)
@@ -261,7 +261,7 @@ process summary {
     script:
     summary = "results.json"
     """
-    cat ${task} >> ${summary}
+    cat ${task_file} >> ${summary}
     """
 }
 
