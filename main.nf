@@ -256,12 +256,12 @@ process summary {
     file 'task*.json' from ch_collate_task_files.collect()
 
     output:
-    file(summary)
+    file 'results.json'
 
     script:
     summary = "results.json"
     """
-    cat task*.json > ${summary}
+    cat task*.json > results.json
     """
 }
 
