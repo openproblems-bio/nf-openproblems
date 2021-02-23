@@ -253,7 +253,7 @@ process summary {
     publishDir "${params.outdir}/", mode: params.publish_dir_mode
 
     input:
-    file 'task*.json' from ch_collate_task_files
+    file 'task*.json' from ch_collate_task_files.collect()
 
     output:
     file(summary)
