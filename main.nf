@@ -207,7 +207,7 @@ process get_software_versions {
 process list_tasks {
     // tag "$name"
     label 'process_low'
-    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/list", mode: params.publish_dir_mode
 
     output:
     file(tasks) into ch_list_tasks
@@ -250,7 +250,7 @@ process collate_task {
  */
 process summary {
     label 'process_low'
-    publishDir "${params.outdir}/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
     input:
     file 'task*.json' from ch_collate_task_files.collect()
