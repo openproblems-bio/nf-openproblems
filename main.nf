@@ -222,7 +222,7 @@ process list_tasks {
 ch_list_tasks
     .splitText()
     .map { it -> it.replaceAll("\\n", "") }
-    .into { ch_collate_task_names }
+    .set { ch_collate_task_names }
 
 
 /*
