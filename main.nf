@@ -219,8 +219,30 @@ process list_tasks {
 ch_list_tasks
     .splitText()
     .map { it -> it.replaceAll("\\n", "") }
-    .set { ch_collate_task_names }
+    .into { ch_collate_task_names; ch_collate_dataset_task_names }
 
+process list_datasets {
+    // tag "$name"
+    label 'process_low'
+    publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_collate_task_names
+
+    output:
+    file(datasets) into ch_list_datasets
+
+    script:
+    datasets = "${task_name}.datasets.txt"
+    """
+    openproblems-cli list --datasets --task ${task_name} > ${datasets}
+    """
+}
+
+ch_list_datasets.view()
+    // .splitText()
+    // .map { it -> it.replaceAll("\\n", "") }
+    // .set { ch_collate_dataset_names }
 
 /*
  * STEP 2 - Collate task results
@@ -230,7 +252,7 @@ process collate_task {
     publishDir "${params.outdir}/task/", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_task_names
+    val(task_name) from ch_collate_dataset_task_names
 
     output:
     file "${task_name}.task.json" into ch_collate_task_files
