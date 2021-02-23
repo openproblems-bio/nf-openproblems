@@ -177,7 +177,6 @@ Channel.from(summary.collect{ [it.key, it.value] })
 /*
  * Parse software version numbers
  */
-/*
 process get_software_versions {
     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode,
         saveAs: { filename ->
@@ -194,12 +193,10 @@ process get_software_versions {
     """
     echo $workflow.manifest.version > v_pipeline.txt
     echo $workflow.nextflow.version > v_nextflow.txt
-    fastqc --version > v_fastqc.txt
-    multiqc --version > v_multiqc.txt
+    python --version > v_python.txt 2>&1
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
-*/
 
 /*
  * STEP 1 - Summary
