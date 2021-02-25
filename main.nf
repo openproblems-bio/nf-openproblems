@@ -248,6 +248,7 @@ process list_datasets {
 }
 
 ch_list_datasets
+    .dump( tag: 'ch_list_datasets' )
     .map { it -> [
         dataset:it.splitText()*.replaceAll("\n", ""), 
         task:it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
@@ -255,11 +256,8 @@ ch_list_datasets
     .map { it -> it.dataset * [it.task] }
     .flatten()
     .collate(2)
-    .multiMap { it ->
-        dataset: it[0]
-        task: it[1]
-        }
-    .set { ch_list_dataset_names }
+    .dump( tag: 'ch_task_dataset_pairs' )
+    .set { ch_task_dataset_pairs }
 
 /*
  * STEP 2 - Collate task results
@@ -267,18 +265,18 @@ ch_list_datasets
 process collate_task {
     tag "${dataset_name}_${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/task/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/collate_task/", mode: params.publish_dir_mode
 
     input:
-    val(dataset_name) from ch_list_dataset_names.dataset
-    val(task_name) from ch_list_dataset_names.task
+    set val(dataset_name), val(task_name) from ch_task_dataset_pairs
 
     output:
-    file "${task_name}.${dataset_name}.dataset.json" into ch_collate_task_files
+    set val(task_name), val(dataset_name), file(task_dataset_json) into ch_collate_task_files
 
     script:
+    task_dataset_json = "${task_name}.${dataset_name}.dataset.json"
     """
-    echo ${dataset_name} > ${task_name}.${dataset_name}.dataset.json
+    echo ${dataset_name} > ${task_dataset_json}
     """
 }
 
@@ -291,7 +289,7 @@ process summary {
     publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
 
     input:
-    file 'task*.json' from ch_collate_task_files.collect()
+    set val(task_name), val(dataset_name), file('task*.json') from ch_collate_task_files.collect()
 
     output:
     file 'results.json'
