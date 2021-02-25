@@ -216,9 +216,18 @@ process list_tasks {
     """
 }
 
+// define list cartesian product
+class CartesianCategory {
+    static Iterable multiply(Iterable a, Iterable b) {
+        assert [a,b].every { it != null }
+        def (m,n) = [a.size(),b.size()]
+        (0..<(m*n)).inject([]) { prod, i -> prod << [a[i.intdiv(n)], b[i%n]].flatten() }
+    }
+}
+Iterable.metaClass.mixin CartesianCategory
+
 ch_list_tasks
-    .splitText()
-    .map { it -> it.replaceAll("\\n", "") }
+    .splitText() { line -> line.replaceAll("\\n", "") }
     .into { ch_collate_task_names; ch_collate_dataset_task_names }
 
 process list_datasets {
@@ -239,10 +248,19 @@ process list_datasets {
     """
 }
 
-ch_list_datasets.view()
-    // .splitText()
-    // .map { it -> it.replaceAll("\\n", "") }
-    // .set { ch_collate_dataset_names }
+ch_list_datasets
+    .map { it -> [
+        dataset:it.splitText()*.replaceAll("\n", ""), 
+        task:it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
+    ] }
+    .map { it -> it.dataset * [it.task] }
+    .flatten()
+    .collate(2)
+    .multiMap { it ->
+        dataset: it[0]
+        task: it[1]
+        }
+    .set { ch_list_dataset_names }
 
 /*
  * STEP 2 - Collate task results
@@ -252,14 +270,15 @@ process collate_task {
     publishDir "${params.outdir}/task/", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_dataset_task_names
+    val(dataset_name) from ch_list_dataset_names.dataset
+    val(task_name) from ch_list_dataset_names.task
 
     output:
-    file "${task_name}.task.json" into ch_collate_task_files
+    file "${task_name}.${dataset_name}.dataset.json" into ch_collate_task_files
 
     script:
     """
-    echo ${task_name} > ${task_name}.task.json
+    echo ${dataset_name} > ${task_name}.${dataset_name}.dataset.json
     """
 }
 
