@@ -202,7 +202,6 @@ process get_software_versions {
  * STEP 1 - Summary
  */
 process list_tasks {
-    // tag "$name"
     label 'process_low'
     publishDir "${params.outdir}/list", mode: params.publish_dir_mode
 
@@ -231,7 +230,7 @@ ch_list_tasks
     .into { ch_collate_task_names; ch_collate_dataset_task_names }
 
 process list_datasets {
-    // tag "$name"
+    tag "${task_name}"
     label 'process_low'
     publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
 
@@ -266,6 +265,7 @@ ch_list_datasets
  * STEP 2 - Collate task results
  */
 process collate_task {
+    tag "${dataset_name}_${task_name}"
     label 'process_low'
     publishDir "${params.outdir}/task/", mode: params.publish_dir_mode
 
