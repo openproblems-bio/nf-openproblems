@@ -243,7 +243,7 @@ process list_datasets {
     val(task_name) from ch_collate_task_names_datasets
 
     output:
-    file(datasets) into ch_list_datasets
+    set file(datasets), val(task_name) into ch_list_datasets
 
     script:
     datasets = "${task_name}.datasets.txt"
@@ -255,24 +255,44 @@ process list_datasets {
 ch_list_datasets
     .dump( tag: 'ch_list_datasets' )
     .map { it -> tuple(
-        it.splitText()*.replaceAll("\n", ""),
-        it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
+        it[0].splitText()*.replaceAll("\n", ""),
+        it[1]
      ) }
     .transpose()
     .dump( tag: 'ch_task_dataset_pairs' )
     .set { ch_task_dataset_pairs }
+    
+/*
+ * STEP 2.5 - Fetch dataset images
+ */
+process dataset_images {
+    tag "${task_name}_${dataset_name}"
+    label 'process_low'
+
+    input:
+    set val(dataset_name), val(task_name) from ch_task_dataset_pairs
+
+    output:
+    set val(dataset_name), val(task_name), stdout into ch_task_dataset_image_triplets
+
+    script:
+    """
+    openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"
+    """
+}
 
 /*
  * STEP 3 - Load datasets
  */
 process load_dataset {
     tag "${dataset_name}_${task_name}"
+    container "singlecellopenproblems/${image}"
     label 'process_medium'
 
-    publishDir "${params.outdir}/h5ad/datasets/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
-    set val(dataset_name), val(task_name) from ch_task_dataset_pairs
+    set val(dataset_name), val(task_name), val(image) from ch_task_dataset_image_triplets
 
     output:
     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
@@ -300,7 +320,7 @@ process list_methods {
     val(task_name) from ch_collate_dataset_task_names_methods
 
     output:
-    file(methods) into ch_list_methods_for_task_method, ch_list_methods_for_task
+    set val(task_name), file(methods) into ch_list_methods_for_task_method
 
     script:
     methods = "${task_name}.methods.txt"
@@ -309,17 +329,11 @@ process list_methods {
     """
 }
 
-ch_list_methods_for_task
-    .dump( tag: 'ch_list_methods_for_task' )
-    .map { it -> it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", "") }
-    .dump( tag: 'ch_tasks_listed')
-    .set { ch_tasks_listed }
-
 ch_list_methods_for_task_method
     .dump( tag: 'ch_list_methods_for_task' )
     .map { it -> tuple(
-        it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", ""),
-        it.splitText()*.replaceAll("\n", "")
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
         )}
     .dump( tag: 'ch_tasks_methods' )
     .transpose()
@@ -329,16 +343,37 @@ ch_list_methods_for_task_method
     // .dump( tag: 'ch_task_method_quads' )
     .set { ch_task_method_quads }
 
+    
+/*
+ * STEP 4.5 - Fetch method images
+ */
+process method_images {
+    tag "${task_name}_${dataset_name}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_method_quads
+
+    output:
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), stdout into ch_task_method_quints
+
+    script:
+    """
+    openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"
+    """
+}
+
 /*
 * STEP 5 - Run methods
 */
 process run_method {
     tag "${method_name}_${dataset_name}_${task_name}"
+    container "singlecellopenproblems/${image}"
     label 'process_medium'
-    publishDir "${params.outdir}/h5ad/methods/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_method_quads
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), val(image) from ch_task_method_quints
 
     output:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
@@ -363,7 +398,7 @@ process list_metrics {
     val(task_name) from ch_collate_dataset_task_names_metrics
 
     output:
-    file(metrics) into ch_list_metrics
+    set val(task_name), file(metrics) into ch_list_metrics
 
     script:
     metrics = "${task_name}.metrics.txt"
@@ -374,66 +409,78 @@ process list_metrics {
 
 ch_list_metrics
     .dump( tag: 'ch_list_metrics' )
-    .map { it -> [
-        metric:it.splitText()*.replaceAll("\n", ""),
-        task:it.toString().replaceAll(".*/", "").replaceAll(".metrics.txt", "")
-    ] }
-    .map { it -> [it.task] * it.metric }
-    .join(ch_ran_methods)
-    .flatten()
-    .collate(5)
-    .dump( tag: 'ch_task_metric_quints' )
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+    ) }
+    .dump( tag: 'ch_tasks_metrics' )
+    .transpose()
+    .dump( tag: 'ch_tasks_metrics_transpose' )
+    .combine(ch_ran_methods, by:0)
+    .dump( tag: 'ch_tasks_metrics_map_collate_combine_datasets' )
     .set { ch_task_metric_quints }
-
+    
 /*
-* STEP 5 - Run methods
-*/
-process run_metric {
-    tag "${metric_name}_${dataset_name}_${task_name}"
+ * STEP 6.5 - Fetch metric images
+ */
+process metric_images {
+    tag "${task_name}_${dataset_name}"
     label 'process_low'
-    publishDir "${params.outdir}/h5ad/metrics/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(metric_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_metric_quints
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad) from ch_task_metric_quints
 
     output:
-    set val(task_name), val(metric_name), val(method_name), val(dataset_name), file(metric_txt) into ch_evaluated_metrics
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad), stdout into ch_task_metric_sextuples
 
     script:
-    metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
+    """
+    openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"
+    """
+}
+
+/*
+* STEP 7 - Run metric
+*/
+process run_metric {
+    tag "${metric_name}_${method_name}_${dataset_name}_${task_name}"
+    container "singlecellopenproblems/${image}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(method_h5ad), val(image) from ch_task_metric_sextuples
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), val(metric_name), stdout into ch_evaluated_metrics
+
+    script:
+    """
+    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} | tr -d "\n"
+    """
+}
+
+/*
+* STEP 8 - Collate method results
+*/
+process run_metric {
+    tag "${metric_name}_${method_name}_${dataset_name}_${task_name}"
+    container "singlecellopenproblems/${image}"
+    label 'process_low'
+    publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(method_h5ad), val(image) from ch_task_metric_sextuples
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
+
+    script:
+    metric_txt = "${task_name}_${dataset_name}_${method_name}_${metric_name}.metric.txt"
     """
     openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
     """
 }
 
-// /*
-//  * STEP 2 - MultiQC
-//  */
-// process multiqc {
-//     publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
-
-//     input:
-//     file (multiqc_config) from ch_multiqc_config
-//     file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-//     // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-//     file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
-//     file ('software_versions/*') from ch_software_versions_yaml.collect()
-//     file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
-
-//     output:
-//     file "*multiqc_report.html" into ch_multiqc_report
-//     file "*_data"
-//     file "multiqc_plots"
-
-//     script:
-//     rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-//     rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-//     custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-//     // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
-//     """
-//     multiqc -f $rtitle $rfilename $custom_config_file .
-//     """
-// }
 
 
 /*
