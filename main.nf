@@ -227,7 +227,7 @@ Iterable.metaClass.mixin CartesianCategory
 
 ch_list_tasks
     .splitText() { line -> line.replaceAll("\\n", "") }
-    .into { ch_collate_task_names_datasets; 
+    .into { ch_collate_task_names_datasets;
             ch_collate_dataset_task_names_methods;
             ch_collate_dataset_task_names_metrics }
 
@@ -261,7 +261,7 @@ ch_list_datasets
     .transpose()
     .dump( tag: 'ch_task_dataset_pairs' )
     .set { ch_task_dataset_pairs }
-    
+
 /*
  * STEP 2.5 - Fetch dataset images
  */
@@ -287,7 +287,7 @@ process dataset_images {
 process load_dataset {
     tag "${dataset_name}_${task_name}"
     container "singlecellopenproblems/${image}"
-    label 'process_medium'
+    label 'process_batch'
 
     publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
@@ -343,7 +343,7 @@ ch_list_methods_for_task_method
     // .dump( tag: 'ch_task_method_quads' )
     .set { ch_task_method_quads }
 
-    
+
 /*
  * STEP 4.5 - Fetch method images
  */
@@ -369,7 +369,7 @@ process method_images {
 process run_method {
     tag "${method_name}_${dataset_name}_${task_name}"
     container "singlecellopenproblems/${image}"
-    label 'process_medium'
+    label 'process_batch'
     publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
@@ -419,7 +419,7 @@ ch_list_metrics
     .combine(ch_ran_methods, by:0)
     .dump( tag: 'ch_tasks_metrics_map_collate_combine_datasets' )
     .set { ch_task_metric_quints }
-    
+
 /*
  * STEP 6.5 - Fetch metric images
  */
@@ -445,27 +445,7 @@ process metric_images {
 process run_metric {
     tag "${metric_name}_${method_name}_${dataset_name}_${task_name}"
     container "singlecellopenproblems/${image}"
-    label 'process_low'
-
-    input:
-    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(method_h5ad), val(image) from ch_task_metric_sextuples
-
-    output:
-    set val(task_name), val(dataset_name), val(method_name), val(metric_name), stdout into ch_evaluated_metrics
-
-    script:
-    """
-    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} | tr -d "\n"
-    """
-}
-
-/*
-* STEP 8 - Collate method results
-*/
-process run_metric {
-    tag "${metric_name}_${method_name}_${dataset_name}_${task_name}"
-    container "singlecellopenproblems/${image}"
-    label 'process_low'
+    label 'process_batch'
     publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
 
     input:
