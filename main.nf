@@ -227,7 +227,9 @@ Iterable.metaClass.mixin CartesianCategory
 
 ch_list_tasks
     .splitText() { line -> line.replaceAll("\\n", "") }
-    .into { ch_collate_task_names; ch_collate_dataset_task_names }
+    .into { ch_collate_task_names_datasets; 
+            ch_collate_dataset_task_names_methods;
+            ch_collate_dataset_task_names_metrics }
 
 /*
  * STEP 2 - List datasets per task
@@ -238,7 +240,7 @@ process list_datasets {
     publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_task_names
+    val(task_name) from ch_collate_task_names_datasets
 
     output:
     file(datasets) into ch_list_datasets
@@ -252,29 +254,28 @@ process list_datasets {
 
 ch_list_datasets
     .dump( tag: 'ch_list_datasets' )
-    .map { it -> [
-        dataset:it.splitText()*.replaceAll("\n", ""),
-        task:it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
-    ] }
-    .map { it -> it.dataset * [it.task] }
-    .flatten()
-    .collate(2)
+    .map { it -> tuple(
+        it.splitText()*.replaceAll("\n", ""),
+        it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
+     ) }
+    .transpose()
     .dump( tag: 'ch_task_dataset_pairs' )
-    .set { ch_task_dataset_pairs; ch_task_dataset_pairs2 }
+    .set { ch_task_dataset_pairs }
 
 /*
  * STEP 3 - Load datasets
  */
 process load_dataset {
     tag "${dataset_name}_${task_name}"
-    label 'process_low'
+    label 'process_medium'
+
     publishDir "${params.outdir}/h5ad/datasets/", mode: params.publish_dir_mode
 
     input:
     set val(dataset_name), val(task_name) from ch_task_dataset_pairs
 
     output:
-    set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets
+    set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
 
     script:
     dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
@@ -282,6 +283,9 @@ process load_dataset {
     openproblems-cli load --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
     """
 }
+
+ch_loaded_datasets_to_print
+    .dump( tag: 'ch_loaded_datasets' )
 
 
 /*
@@ -293,10 +297,10 @@ process list_methods {
     publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_task_names
+    val(task_name) from ch_collate_dataset_task_names_methods
 
     output:
-    file(methods) into ch_list_methods
+    file(methods) into ch_list_methods_for_task_method, ch_list_methods_for_task
 
     script:
     methods = "${task_name}.methods.txt"
@@ -305,17 +309,24 @@ process list_methods {
     """
 }
 
-ch_list_methods
-    .dump( tag: 'ch_list_methods' )
-    .map { it -> [
-        method:it.splitText()*.replaceAll("\n", ""),
-        task:it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", "")
-    ] }
-    .map { it -> [it.task] * it.method }
-    .join(ch_loaded_datasets)
-    .flatten()
-    .collate(4)
-    .dump( tag: 'ch_task_method_quads' )
+ch_list_methods_for_task
+    .dump( tag: 'ch_list_methods_for_task' )
+    .map { it -> it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", "") }
+    .dump( tag: 'ch_tasks_listed')
+    .set { ch_tasks_listed }
+
+ch_list_methods_for_task_method
+    .dump( tag: 'ch_list_methods_for_task' )
+    .map { it -> tuple(
+        it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", ""),
+        it.splitText()*.replaceAll("\n", "")
+        )}
+    .dump( tag: 'ch_tasks_methods' )
+    .transpose()
+    .dump( tag: 'ch_tasks_methods_transpose' )
+    .combine( ch_loaded_datasets, by: 0)
+    .dump( tag: 'ch_tasks_methods_map_collate_combine_datasets' )
+    // .dump( tag: 'ch_task_method_quads' )
     .set { ch_task_method_quads }
 
 /*
@@ -323,7 +334,7 @@ ch_list_methods
 */
 process run_method {
     tag "${method_name}_${dataset_name}_${task_name}"
-    label 'process_low'
+    label 'process_medium'
     publishDir "${params.outdir}/h5ad/methods/", mode: params.publish_dir_mode
 
     input:
@@ -349,7 +360,7 @@ process list_metrics {
     publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_task_names
+    val(task_name) from ch_collate_dataset_task_names_metrics
 
     output:
     file(metrics) into ch_list_metrics
