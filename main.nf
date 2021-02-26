@@ -290,7 +290,7 @@ process dataset_images {
  * STEP 3 - Load datasets
  */
 process load_dataset {
-    tag "${dataset_name}_${task_name}"
+    tag "${dataset_name}-${task_name}:${image}"
     container "singlecellopenproblems/${image}"
     label 'process_batch'
 
@@ -353,7 +353,7 @@ ch_list_methods_for_task_method
  * STEP 4.5 - Fetch method images
  */
 process method_images {
-    tag "${task_name}_${dataset_name}"
+    tag "${task_name}-${dataset_name}-${method_name}:${image}"
     label 'process_low'
 
     input:
@@ -448,7 +448,7 @@ process metric_images {
 * STEP 7 - Run metric
 */
 process run_metric {
-    tag "${metric_name}_${method_name}_${dataset_name}_${task_name}"
+    tag "${task_name}-${dataset_name}-${method_name}-${metric_name}:${image}"
     container "singlecellopenproblems/${image}"
     label 'process_batch'
     publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
