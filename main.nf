@@ -91,6 +91,9 @@ if (workflow.profile.contains('awsbatch')) {
     if (params.tracedir.startsWith('s3:')) exit 1, "Specify a local tracedir or run without trace! S3 cannot be used for tracefiles."
 }
 
+// Specifies whether to use mini test data
+use_mini_test_data = params.use_mini_test_data
+
 // Stage config files
 ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
 ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
@@ -299,8 +302,9 @@ process load_dataset {
 
     script:
     dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
+    test_flag = '--test' if use_mini_test_data else ''
     """
-    openproblems-cli load --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
+    openproblems-cli load ${test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
     """
 }
 
