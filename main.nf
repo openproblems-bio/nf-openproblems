@@ -199,7 +199,7 @@ process get_software_versions {
 }
 
 /*
- * STEP 1 - Summary
+ * STEP 1 - List tasks
  */
 process list_tasks {
     label 'process_low'
@@ -229,6 +229,9 @@ ch_list_tasks
     .splitText() { line -> line.replaceAll("\\n", "") }
     .into { ch_collate_task_names; ch_collate_dataset_task_names }
 
+/*
+ * STEP 2 - List datasets per task
+ */
 process list_datasets {
     tag "${task_name}"
     label 'process_low'
@@ -250,54 +253,145 @@ process list_datasets {
 ch_list_datasets
     .dump( tag: 'ch_list_datasets' )
     .map { it -> [
-        dataset:it.splitText()*.replaceAll("\n", ""), 
+        dataset:it.splitText()*.replaceAll("\n", ""),
         task:it.toString().replaceAll(".*/", "").replaceAll(".datasets.txt", "")
     ] }
     .map { it -> it.dataset * [it.task] }
     .flatten()
     .collate(2)
     .dump( tag: 'ch_task_dataset_pairs' )
-    .set { ch_task_dataset_pairs }
+    .set { ch_task_dataset_pairs; ch_task_dataset_pairs2 }
 
 /*
- * STEP 2 - Collate task results
+ * STEP 3 - Load datasets
  */
-process collate_task {
+process load_dataset {
     tag "${dataset_name}_${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/collate_task/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/h5ad/datasets/", mode: params.publish_dir_mode
 
     input:
     set val(dataset_name), val(task_name) from ch_task_dataset_pairs
 
     output:
-    set val(task_name), val(dataset_name), file(task_dataset_json) into ch_collate_task_files
+    set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets
 
     script:
-    task_dataset_json = "${task_name}.${dataset_name}.dataset.json"
+    dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
     """
-    echo ${dataset_name} > ${task_dataset_json}
+    openproblems-cli load --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
     """
 }
 
 
 /*
- * STEP 3 - Collate full results
+ * STEP 4 - List methods per task
  */
-process summary {
+process list_methods {
+    tag "${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/summary", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(dataset_name), file('task*.json') from ch_collate_task_files.collect()
+    val(task_name) from ch_collate_task_names
 
     output:
-    file 'results.json'
+    file(methods) into ch_list_methods
 
     script:
-    summary = "results.json"
+    methods = "${task_name}.methods.txt"
     """
-    cat task*.json > results.json
+    openproblems-cli list --methods --task ${task_name} > ${methods}
+    """
+}
+
+ch_list_methods
+    .dump( tag: 'ch_list_methods' )
+    .map { it -> [
+        method:it.splitText()*.replaceAll("\n", ""),
+        task:it.toString().replaceAll(".*/", "").replaceAll(".methods.txt", "")
+    ] }
+    .map { it -> [it.task] * it.method }
+    .join(ch_loaded_datasets)
+    .flatten()
+    .collate(4)
+    .dump( tag: 'ch_task_method_quads' )
+    .set { ch_task_method_quads }
+
+/*
+* STEP 5 - Run methods
+*/
+process run_method {
+    tag "${method_name}_${dataset_name}_${task_name}"
+    label 'process_low'
+    publishDir "${params.outdir}/h5ad/methods/", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_method_quads
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
+
+    script:
+    method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
+    """
+    openproblems-cli run --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
+    """
+}
+
+
+/*
+ * STEP 6 - List metrics per task
+ */
+process list_metrics {
+    tag "${task_name}"
+    label 'process_low'
+    publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_collate_task_names
+
+    output:
+    file(metrics) into ch_list_metrics
+
+    script:
+    metrics = "${task_name}.metrics.txt"
+    """
+    openproblems-cli list --metrics --task ${task_name} > ${metrics}
+    """
+}
+
+ch_list_metrics
+    .dump( tag: 'ch_list_metrics' )
+    .map { it -> [
+        metric:it.splitText()*.replaceAll("\n", ""),
+        task:it.toString().replaceAll(".*/", "").replaceAll(".metrics.txt", "")
+    ] }
+    .map { it -> [it.task] * it.metric }
+    .join(ch_ran_methods)
+    .flatten()
+    .collate(5)
+    .dump( tag: 'ch_task_metric_quints' )
+    .set { ch_task_metric_quints }
+
+/*
+* STEP 5 - Run methods
+*/
+process run_metric {
+    tag "${metric_name}_${dataset_name}_${task_name}"
+    label 'process_low'
+    publishDir "${params.outdir}/h5ad/metrics/", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(metric_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_metric_quints
+
+    output:
+    set val(task_name), val(metric_name), val(method_name), val(dataset_name), file(metric_txt) into ch_evaluated_metrics
+
+    script:
+    metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
+    """
+    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
     """
 }
 
