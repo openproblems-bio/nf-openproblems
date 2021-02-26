@@ -92,7 +92,11 @@ if (workflow.profile.contains('awsbatch')) {
 }
 
 // Specifies whether to use mini test data
-use_mini_test_data = params.use_mini_test_data
+if (params.use_mini_test_data) {
+    params.test_flag = '--test'
+} else {
+    params.test_flag = ''
+}
 
 // Stage config files
 ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
@@ -130,9 +134,7 @@ def summary = [:]
 if (workflow.revision) summary['Pipeline Release'] = workflow.revision
 summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
-summary['Input']            = params.input
-summary['Fasta Ref']        = params.fasta
-summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
+summary['Test']            = params.use_mini_test_data
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
 if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
 summary['Output dir']       = params.outdir
@@ -302,9 +304,8 @@ process load_dataset {
 
     script:
     dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
-    test_flag = '--test' if use_mini_test_data else ''
     """
-    openproblems-cli load ${test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
+    openproblems-cli load ${params.test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
     """
 }
 
