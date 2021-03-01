@@ -380,7 +380,7 @@ process metric_images {
     """
 }
 
-ch_task_method_image_triplets
+ch_task_metric_image_triplets
     .combine(ch_ran_methods, by:0)
     .set { ch_dataset_method_metrics }
 
