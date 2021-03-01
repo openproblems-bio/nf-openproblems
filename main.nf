@@ -26,11 +26,7 @@ def helpMessage() {
                                       Available: conda, docker, singularity, test, awsbatch, <institute> and more
 
     Options:
-      --genome [str]                  Name of iGenomes reference
-      --single_end [bool]             Specifies that the input is single-end reads
 
-    References                        If not specified in the configuration file or you wish to overwrite any of the references
-      --fasta [file]                  Path to fasta reference
 
     Other options:
       --outdir [file]                 The output directory where the results will be saved
@@ -57,22 +53,6 @@ if (params.help) {
  * SET UP CONFIGURATION VARIABLES
  */
 
-// // Check if genome exists in the config file
-// if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
-//     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
-// }
-
-// // TODO nf-core: Add any reference files that are needed
-// // Configurable reference genomes
-// //
-// // NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
-// // If you want to use the channel below in a process, define the following:
-// //   input:
-// //   file fasta from ch_fasta
-// //
-// params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
-// if (params.fasta) { ch_fasta = file(params.fasta, checkIfExists: true) }
-
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name
 custom_runName = params.name
@@ -92,7 +72,7 @@ if (workflow.profile.contains('awsbatch')) {
 }
 
 // Specifies whether to use mini test data
-if (params.use_mini_test_data) {
+if (params.use_test_data) {
     params.test_flag = '--test'
 } else {
     params.test_flag = ''
@@ -104,37 +84,13 @@ ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multi
 ch_output_docs = file("$projectDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$projectDir/docs/images/", checkIfExists: true)
 
-// /*
-//  * Create a channel for input read files
-//  */
-// if (params.input_paths) {
-//     if (params.single_end) {
-//         Channel
-//             .from(params.input_paths)
-//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-//             .into { ch_read_files_fastqc; ch_read_files_trimming }
-//     } else {
-//         Channel
-//             .from(params.input_paths)
-//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-//             .into { ch_read_files_fastqc; ch_read_files_trimming }
-//     }
-// } else {
-//     Channel
-//         .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
-//         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
-//         .into { ch_read_files_fastqc; ch_read_files_trimming }
-// }
-
 // Header log info
 log.info nfcoreHeader()
 def summary = [:]
 if (workflow.revision) summary['Pipeline Release'] = workflow.revision
 summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
-summary['Test']            = params.use_mini_test_data
+summary['Test']            = params.use_test_data
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
 if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
 summary['Output dir']       = params.outdir
@@ -220,21 +176,11 @@ process list_tasks {
     """
 }
 
-// define list cartesian product
-class CartesianCategory {
-    static Iterable multiply(Iterable a, Iterable b) {
-        assert [a,b].every { it != null }
-        def (m,n) = [a.size(),b.size()]
-        (0..<(m*n)).inject([]) { prod, i -> prod << [a[i.intdiv(n)], b[i%n]].flatten() }
-    }
-}
-Iterable.metaClass.mixin CartesianCategory
-
 ch_list_tasks
     .splitText() { line -> line.replaceAll("\\n", "") }
-    .into { ch_collate_task_names_datasets;
-            ch_collate_dataset_task_names_methods;
-            ch_collate_dataset_task_names_metrics }
+    .into { ch_task_names_for_list_datasets;
+            ch_task_names_for_list_methods;
+            ch_task_names_for_list_metrics }
 
 /*
  * STEP 2 - List datasets per task
@@ -245,10 +191,10 @@ process list_datasets {
     // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_task_names_datasets
+    val(task_name) from ch_task_names_for_list_datasets
 
     output:
-    set file(datasets), val(task_name) into ch_list_datasets
+    set val(task_name), file(datasets) into ch_list_datasets
 
     script:
     datasets = "${task_name}.datasets.txt"
@@ -260,8 +206,8 @@ process list_datasets {
 ch_list_datasets
     .dump( tag: 'ch_list_datasets' )
     .map { it -> tuple(
-        it[0].splitText()*.replaceAll("\n", ""),
-        it[1]
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
      ) }
     .transpose()
     .dump( tag: 'ch_task_dataset_pairs' )
@@ -271,14 +217,14 @@ ch_list_datasets
  * STEP 2.5 - Fetch dataset images
  */
 process dataset_images {
-    tag "${task_name}_${dataset_name}"
+    tag "${task_name}-${dataset_name}"
     label 'process_low'
 
     input:
-    set val(dataset_name), val(task_name) from ch_task_dataset_pairs
+    set val(task_name), val(dataset_name) from ch_task_dataset_pairs
 
     output:
-    set val(dataset_name), val(task_name), stdout into ch_task_dataset_image_triplets
+    set val(task_name), val(dataset_name), stdout into ch_task_dataset_image_triplets
 
     script:
     """
@@ -297,7 +243,7 @@ process load_dataset {
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
-    set val(dataset_name), val(task_name), val(image) from ch_task_dataset_image_triplets
+    set val(task_name), val(dataset_name), val(image) from ch_task_dataset_image_triplets
 
     output:
     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
@@ -309,9 +255,6 @@ process load_dataset {
     """
 }
 
-ch_loaded_datasets_to_print
-    .dump( tag: 'ch_loaded_datasets' )
-
 
 /*
  * STEP 4 - List methods per task
@@ -322,10 +265,10 @@ process list_methods {
     // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_dataset_task_names_methods
+    val(task_name) from ch_task_names_for_list_methods
 
     output:
-    set val(task_name), file(methods) into ch_list_methods_for_task_method
+    set val(task_name), file(methods) into ch_list_methods
 
     script:
     methods = "${task_name}.methods.txt"
@@ -334,39 +277,37 @@ process list_methods {
     """
 }
 
-ch_list_methods_for_task_method
-    .dump( tag: 'ch_list_methods_for_task' )
+ch_list_methods
     .map { it -> tuple(
         it[0],
         it[1].splitText()*.replaceAll("\n", "")
         )}
-    .dump( tag: 'ch_tasks_methods' )
     .transpose()
-    .dump( tag: 'ch_tasks_methods_transpose' )
-    .combine( ch_loaded_datasets, by: 0)
-    .dump( tag: 'ch_tasks_methods_map_collate_combine_datasets' )
-    // .dump( tag: 'ch_task_method_quads' )
-    .set { ch_task_method_quads }
+    .set { ch_task_method_pairs }
 
 
 /*
  * STEP 4.5 - Fetch method images
  */
 process method_images {
-    tag "${task_name}-${dataset_name}-${method_name}:${image}"
+    tag "${task_name}-${method_name}"
     label 'process_low'
 
     input:
-    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_method_quads
+    set val(task_name), val(method_name) from ch_task_method_pairs
 
     output:
-    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), stdout into ch_task_method_quints
+    set val(task_name), val(method_name), stdout into ch_task_method_image_triplets
 
     script:
     """
     openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"
     """
 }
+
+ch_task_method_image_triplets
+    .combine( ch_loaded_datasets, by: 0)
+    .set { ch_dataset_methods }
 
 /*
 * STEP 5 - Run methods
@@ -378,7 +319,7 @@ process run_method {
     // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), val(image) from ch_task_method_quints
+    set val(task_name), val(method_name), val(image), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
 
     output:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
@@ -400,7 +341,7 @@ process list_metrics {
     // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
 
     input:
-    val(task_name) from ch_collate_dataset_task_names_metrics
+    val(task_name) from ch_task_names_for_list_metrics
 
     output:
     set val(task_name), file(metrics) into ch_list_metrics
@@ -413,17 +354,12 @@ process list_metrics {
 }
 
 ch_list_metrics
-    .dump( tag: 'ch_list_metrics' )
     .map { it -> tuple(
         it[0],
         it[1].splitText()*.replaceAll("\n", "")
     ) }
-    .dump( tag: 'ch_tasks_metrics' )
     .transpose()
-    .dump( tag: 'ch_tasks_metrics_transpose' )
-    .combine(ch_ran_methods, by:0)
-    .dump( tag: 'ch_tasks_metrics_map_collate_combine_datasets' )
-    .set { ch_task_metric_quints }
+    .set { ch_task_metric_pairs }
 
 /*
  * STEP 6.5 - Fetch metric images
@@ -433,16 +369,21 @@ process metric_images {
     label 'process_low'
 
     input:
-    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad) from ch_task_metric_quints
+    set val(task_name), val(metric_name) from ch_task_metric_pairs
 
     output:
-    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad), stdout into ch_task_metric_sextuples
+    set val(task_name), val(metric_name), stdout into ch_task_metric_image_triplets
 
     script:
     """
     openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"
     """
 }
+
+ch_task_method_image_triplets
+    .combine(ch_ran_methods, by:0)
+    .set { ch_dataset_method_metrics }
+
 
 /*
 * STEP 7 - Run metric
@@ -454,7 +395,7 @@ process run_metric {
     publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(method_h5ad), val(image) from ch_task_metric_sextuples
+    set val(task_name), val(metric_name), val(image), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
 
     output:
     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
