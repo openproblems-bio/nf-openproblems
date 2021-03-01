@@ -57,21 +57,21 @@ if (params.help) {
  * SET UP CONFIGURATION VARIABLES
  */
 
-// Check if genome exists in the config file
-if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
-    exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
-}
+// // Check if genome exists in the config file
+// if (params.genomes && params.genome && !params.genomes.containsKey(params.genome)) {
+//     exit 1, "The provided genome '${params.genome}' is not available in the iGenomes file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
+// }
 
-// TODO nf-core: Add any reference files that are needed
-// Configurable reference genomes
-//
-// NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
-// If you want to use the channel below in a process, define the following:
-//   input:
-//   file fasta from ch_fasta
-//
-params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
-if (params.fasta) { ch_fasta = file(params.fasta, checkIfExists: true) }
+// // TODO nf-core: Add any reference files that are needed
+// // Configurable reference genomes
+// //
+// // NOTE - THIS IS NOT USED IN THIS PIPELINE, EXAMPLE ONLY
+// // If you want to use the channel below in a process, define the following:
+// //   input:
+// //   file fasta from ch_fasta
+// //
+// params.fasta = params.genome ? params.genomes[ params.genome ].fasta ?: false : false
+// if (params.fasta) { ch_fasta = file(params.fasta, checkIfExists: true) }
 
 // Has the run name been specified by the user?
 // this has the bonus effect of catching both -name and --name
@@ -91,35 +91,42 @@ if (workflow.profile.contains('awsbatch')) {
     if (params.tracedir.startsWith('s3:')) exit 1, "Specify a local tracedir or run without trace! S3 cannot be used for tracefiles."
 }
 
+// Specifies whether to use mini test data
+if (params.use_mini_test_data) {
+    params.test_flag = '--test'
+} else {
+    params.test_flag = ''
+}
+
 // Stage config files
 ch_multiqc_config = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
 ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config, checkIfExists: true) : Channel.empty()
 ch_output_docs = file("$projectDir/docs/output.md", checkIfExists: true)
 ch_output_docs_images = file("$projectDir/docs/images/", checkIfExists: true)
 
-/*
- * Create a channel for input read files
- */
-if (params.input_paths) {
-    if (params.single_end) {
-        Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
-    } else {
-        Channel
-            .from(params.input_paths)
-            .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
-            .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
-            .into { ch_read_files_fastqc; ch_read_files_trimming }
-    }
-} else {
-    Channel
-        .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
-        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
-        .into { ch_read_files_fastqc; ch_read_files_trimming }
-}
+// /*
+//  * Create a channel for input read files
+//  */
+// if (params.input_paths) {
+//     if (params.single_end) {
+//         Channel
+//             .from(params.input_paths)
+//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true) ] ] }
+//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+//             .into { ch_read_files_fastqc; ch_read_files_trimming }
+//     } else {
+//         Channel
+//             .from(params.input_paths)
+//             .map { row -> [ row[0], [ file(row[1][0], checkIfExists: true), file(row[1][1], checkIfExists: true) ] ] }
+//             .ifEmpty { exit 1, "params.input_paths was empty - no input files supplied" }
+//             .into { ch_read_files_fastqc; ch_read_files_trimming }
+//     }
+// } else {
+//     Channel
+//         .fromFilePairs(params.input, size: params.single_end ? 1 : 2)
+//         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.input}\nNB: Path needs to be enclosed in quotes!\nIf this is single-end data, please specify --single_end on the command line." }
+//         .into { ch_read_files_fastqc; ch_read_files_trimming }
+// }
 
 // Header log info
 log.info nfcoreHeader()
@@ -127,9 +134,7 @@ def summary = [:]
 if (workflow.revision) summary['Pipeline Release'] = workflow.revision
 summary['Run Name']         = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
-summary['Input']            = params.input
-summary['Fasta Ref']        = params.fasta
-summary['Data Type']        = params.single_end ? 'Single-End' : 'Paired-End'
+summary['Test']            = params.use_mini_test_data
 summary['Max Resources']    = "$params.max_memory memory, $params.max_cpus cpus, $params.max_time time per job"
 if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
 summary['Output dir']       = params.outdir
@@ -193,82 +198,275 @@ process get_software_versions {
     """
     echo $workflow.manifest.version > v_pipeline.txt
     echo $workflow.nextflow.version > v_nextflow.txt
-    fastqc --version > v_fastqc.txt
-    multiqc --version > v_multiqc.txt
+    python --version > v_python.txt 2>&1
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
 
 /*
- * STEP 1 - FastQC
+ * STEP 1 - List tasks
  */
-process fastqc {
-    tag "$name"
-    label 'process_medium'
-    publishDir "${params.outdir}/fastqc", mode: params.publish_dir_mode,
-        saveAs: { filename ->
-                      filename.indexOf(".zip") > 0 ? "zips/$filename" : "$filename"
-                }
-
-    input:
-    set val(name), file(reads) from ch_read_files_fastqc
+process list_tasks {
+    label 'process_low'
+    // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
 
     output:
-    file "*_fastqc.{zip,html}" into ch_fastqc_results
+    file(tasks) into ch_list_tasks
+
+    script:
+    tasks = "tasks.txt"
+    """
+    openproblems-cli tasks > ${tasks}
+    """
+}
+
+// define list cartesian product
+class CartesianCategory {
+    static Iterable multiply(Iterable a, Iterable b) {
+        assert [a,b].every { it != null }
+        def (m,n) = [a.size(),b.size()]
+        (0..<(m*n)).inject([]) { prod, i -> prod << [a[i.intdiv(n)], b[i%n]].flatten() }
+    }
+}
+Iterable.metaClass.mixin CartesianCategory
+
+ch_list_tasks
+    .splitText() { line -> line.replaceAll("\\n", "") }
+    .into { ch_collate_task_names_datasets;
+            ch_collate_dataset_task_names_methods;
+            ch_collate_dataset_task_names_metrics }
+
+/*
+ * STEP 2 - List datasets per task
+ */
+process list_datasets {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_collate_task_names_datasets
+
+    output:
+    set file(datasets), val(task_name) into ch_list_datasets
+
+    script:
+    datasets = "${task_name}.datasets.txt"
+    """
+    openproblems-cli list --datasets --task ${task_name} > ${datasets}
+    """
+}
+
+ch_list_datasets
+    .dump( tag: 'ch_list_datasets' )
+    .map { it -> tuple(
+        it[0].splitText()*.replaceAll("\n", ""),
+        it[1]
+     ) }
+    .transpose()
+    .dump( tag: 'ch_task_dataset_pairs' )
+    .set { ch_task_dataset_pairs }
+
+/*
+ * STEP 2.5 - Fetch dataset images
+ */
+process dataset_images {
+    tag "${task_name}_${dataset_name}"
+    label 'process_low'
+
+    input:
+    set val(dataset_name), val(task_name) from ch_task_dataset_pairs
+
+    output:
+    set val(dataset_name), val(task_name), stdout into ch_task_dataset_image_triplets
 
     script:
     """
-    fastqc --quiet --threads $task.cpus $reads
+    openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"
     """
 }
 
 /*
- * STEP 2 - MultiQC
+ * STEP 3 - Load datasets
  */
-process multiqc {
-    publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
+process load_dataset {
+    tag "${dataset_name}-${task_name}:${image}"
+    container "singlecellopenproblems/${image}"
+    label 'process_batch'
+
+    // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
-    file (multiqc_config) from ch_multiqc_config
-    file (mqc_custom_config) from ch_multiqc_custom_config.collect().ifEmpty([])
-    // TODO nf-core: Add in log files from your new processes for MultiQC to find!
-    file ('fastqc/*') from ch_fastqc_results.collect().ifEmpty([])
-    file ('software_versions/*') from ch_software_versions_yaml.collect()
-    file workflow_summary from ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
+    set val(dataset_name), val(task_name), val(image) from ch_task_dataset_image_triplets
 
     output:
-    file "*multiqc_report.html" into ch_multiqc_report
-    file "*_data"
-    file "multiqc_plots"
+    set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
 
     script:
-    rtitle = custom_runName ? "--title \"$custom_runName\"" : ''
-    rfilename = custom_runName ? "--filename " + custom_runName.replaceAll('\\W','_').replaceAll('_+','_') + "_multiqc_report" : ''
-    custom_config_file = params.multiqc_config ? "--config $mqc_custom_config" : ''
-    // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
+    dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
     """
-    multiqc -f $rtitle $rfilename $custom_config_file .
+    openproblems-cli load ${params.test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
+    """
+}
+
+ch_loaded_datasets_to_print
+    .dump( tag: 'ch_loaded_datasets' )
+
+
+/*
+ * STEP 4 - List methods per task
+ */
+process list_methods {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_collate_dataset_task_names_methods
+
+    output:
+    set val(task_name), file(methods) into ch_list_methods_for_task_method
+
+    script:
+    methods = "${task_name}.methods.txt"
+    """
+    openproblems-cli list --methods --task ${task_name} > ${methods}
+    """
+}
+
+ch_list_methods_for_task_method
+    .dump( tag: 'ch_list_methods_for_task' )
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+        )}
+    .dump( tag: 'ch_tasks_methods' )
+    .transpose()
+    .dump( tag: 'ch_tasks_methods_transpose' )
+    .combine( ch_loaded_datasets, by: 0)
+    .dump( tag: 'ch_tasks_methods_map_collate_combine_datasets' )
+    // .dump( tag: 'ch_task_method_quads' )
+    .set { ch_task_method_quads }
+
+
+/*
+ * STEP 4.5 - Fetch method images
+ */
+process method_images {
+    tag "${task_name}-${dataset_name}-${method_name}:${image}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad) from ch_task_method_quads
+
+    output:
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), stdout into ch_task_method_quints
+
+    script:
+    """
+    openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"
     """
 }
 
 /*
- * STEP 3 - Output Description HTML
- */
-process output_documentation {
-    publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
+* STEP 5 - Run methods
+*/
+process run_method {
+    tag "${method_name}_${dataset_name}_${task_name}"
+    container "singlecellopenproblems/${image}"
+    label 'process_batch'
+    // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
-    file output_docs from ch_output_docs
-    file images from ch_output_docs_images
+    set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), val(image) from ch_task_method_quints
 
     output:
-    file "results_description.html"
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
+
+    script:
+    method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
+    """
+    openproblems-cli run --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
+    """
+}
+
+
+/*
+ * STEP 6 - List metrics per task
+ */
+process list_metrics {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_collate_dataset_task_names_metrics
+
+    output:
+    set val(task_name), file(metrics) into ch_list_metrics
+
+    script:
+    metrics = "${task_name}.metrics.txt"
+    """
+    openproblems-cli list --metrics --task ${task_name} > ${metrics}
+    """
+}
+
+ch_list_metrics
+    .dump( tag: 'ch_list_metrics' )
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+    ) }
+    .dump( tag: 'ch_tasks_metrics' )
+    .transpose()
+    .dump( tag: 'ch_tasks_metrics_transpose' )
+    .combine(ch_ran_methods, by:0)
+    .dump( tag: 'ch_tasks_metrics_map_collate_combine_datasets' )
+    .set { ch_task_metric_quints }
+
+/*
+ * STEP 6.5 - Fetch metric images
+ */
+process metric_images {
+    tag "${task_name}_${dataset_name}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad) from ch_task_metric_quints
+
+    output:
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(dataset_h5ad), stdout into ch_task_metric_sextuples
 
     script:
     """
-    markdown_to_html.py $output_docs -o results_description.html
+    openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"
     """
 }
+
+/*
+* STEP 7 - Run metric
+*/
+process run_metric {
+    tag "${task_name}-${dataset_name}-${method_name}-${metric_name}:${image}"
+    container "singlecellopenproblems/${image}"
+    label 'process_batch'
+    publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(metric_name), val(dataset_name), val(method_name), file(method_h5ad), val(image) from ch_task_metric_sextuples
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
+
+    script:
+    metric_txt = "${task_name}_${dataset_name}_${method_name}_${metric_name}.metric.txt"
+    """
+    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
+    """
+}
+
+
 
 /*
  * Completion e-mail notification

@@ -34,13 +34,13 @@ jobs:
 
       - name: Build new docker image
         if: env.MATCHED_FILES
-        run: docker build --no-cache . -t nfcore/openproblems:dev
+        run: docker build --no-cache . -t singlecellopenproblems/openproblems:latest
 
       - name: Pull docker image
         if: ${{ !env.MATCHED_FILES }}
         run: |
-          docker pull nfcore/openproblems:dev
-          docker tag nfcore/openproblems:dev nfcore/openproblems:dev
+          docker pull singlecellopenproblems/openproblems:latest
+          docker tag singlecellopenproblems/openproblems:latest singlecellopenproblems/openproblems:latest
 
       - name: Install Nextflow
         env:
