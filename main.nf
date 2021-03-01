@@ -237,7 +237,7 @@ process dataset_images {
  */
 process load_dataset {
     tag "${dataset_name}-${task_name}:${image}"
-    container "singlecellopenproblems/${image}"
+    container "${params.container_host}${image}"
     label 'process_batch'
 
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
@@ -314,7 +314,7 @@ ch_task_method_image_triplets
 */
 process run_method {
     tag "${method_name}-${dataset_name}-${task_name}:${image}"
-    container "singlecellopenproblems/${image}"
+    container "${params.container_host}${image}"
     label 'process_batch'
     // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
@@ -390,7 +390,7 @@ ch_task_metric_image_triplets
 */
 process run_metric {
     tag "${task_name}-${dataset_name}-${method_name}-${metric_name}:${image}"
-    container "singlecellopenproblems/${image}"
+    container "${params.container_host}${image}"
     label 'process_batch'
     publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
 
