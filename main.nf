@@ -208,7 +208,7 @@ process get_software_versions {
  */
 process list_tasks {
     label 'process_low'
-    publishDir "${params.outdir}/list", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
 
     output:
     file(tasks) into ch_list_tasks
@@ -242,7 +242,7 @@ ch_list_tasks
 process list_datasets {
     tag "${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
 
     input:
     val(task_name) from ch_collate_task_names_datasets
@@ -294,7 +294,7 @@ process load_dataset {
     container "singlecellopenproblems/${image}"
     label 'process_batch'
 
-    publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
     set val(dataset_name), val(task_name), val(image) from ch_task_dataset_image_triplets
@@ -319,7 +319,7 @@ ch_loaded_datasets_to_print
 process list_methods {
     tag "${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
 
     input:
     val(task_name) from ch_collate_dataset_task_names_methods
@@ -375,7 +375,7 @@ process run_method {
     tag "${method_name}_${dataset_name}_${task_name}"
     container "singlecellopenproblems/${image}"
     label 'process_batch'
-    publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
     set val(task_name), val(method_name), val(dataset_name), file(dataset_h5ad), val(image) from ch_task_method_quints
@@ -397,7 +397,7 @@ process run_method {
 process list_metrics {
     tag "${task_name}"
     label 'process_low'
-    publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
+    // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
 
     input:
     val(task_name) from ch_collate_dataset_task_names_metrics
