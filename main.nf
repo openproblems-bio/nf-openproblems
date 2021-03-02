@@ -217,7 +217,7 @@ ch_list_datasets
  * STEP 2.5 - Fetch dataset images
  */
 process dataset_images {
-    tag "${task_name}-${dataset_name}"
+    tag "${task_name}:${dataset_name}"
     label 'process_low'
 
     input:
@@ -236,7 +236,7 @@ process dataset_images {
  * STEP 3 - Load datasets
  */
 process load_dataset {
-    tag "${dataset_name}-${task_name}:${image}"
+    tag "${task_name}:${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
 
@@ -290,7 +290,7 @@ ch_list_methods
  * STEP 4.5 - Fetch method images
  */
 process method_images {
-    tag "${task_name}-${method_name}"
+    tag "${task_name}:${method_name}"
     label 'process_low'
 
     input:
@@ -313,7 +313,7 @@ ch_task_method_image_triplets
 * STEP 5 - Run methods
 */
 process run_method {
-    tag "${method_name}-${dataset_name}-${task_name}:${image}"
+    tag "${task_name}:${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
     // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
@@ -365,7 +365,7 @@ ch_list_metrics
  * STEP 6.5 - Fetch metric images
  */
 process metric_images {
-    tag "${task_name}-${dataset_name}"
+    tag "${task_name}:${dataset_name}"
     label 'process_low'
 
     input:
@@ -389,7 +389,7 @@ ch_task_metric_image_triplets
 * STEP 7 - Run metric
 */
 process run_metric {
-    tag "${task_name}-${dataset_name}-${method_name}-${metric_name}:${image}"
+    tag "${task_name}:${metric_name}-${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
     publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
