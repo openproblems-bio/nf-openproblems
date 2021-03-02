@@ -144,17 +144,18 @@ process get_software_versions {
                       if (filename.indexOf(".csv") > 0) filename
                       else null
                 }
+    label 'process_low'
 
     output:
     file 'software_versions_mqc.yaml' into ch_software_versions_yaml
     file "software_versions.csv"
 
     script:
-    // TODO nf-core: Get all tools to print their version number here
     """
     echo $workflow.manifest.version > v_pipeline.txt
     echo $workflow.nextflow.version > v_nextflow.txt
     python --version > v_python.txt 2>&1
+    openproblems-cli --version > v_openproblems.txt
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
 }
@@ -210,7 +211,6 @@ ch_list_datasets
         it[1].splitText()*.replaceAll("\n", "")
      ) }
     .transpose()
-    .dump( tag: 'ch_task_dataset_pairs' )
     .set { ch_task_dataset_pairs }
 
 /*
@@ -224,11 +224,12 @@ process dataset_images {
     set val(task_name), val(dataset_name) from ch_task_dataset_pairs
 
     output:
-    set val(task_name), val(dataset_name), stdout into ch_task_dataset_image_triplets
+    set val(task_name), val(dataset_name), env(IMAGE), env(HASH) into ch_task_dataset_image_hash
 
     script:
     """
-    openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"
+    IMAGE=`openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --datasets --task ${task_name} ${dataset_name}`
     """
 }
 
@@ -243,7 +244,7 @@ process load_dataset {
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(dataset_name), val(image) from ch_task_dataset_image_triplets
+    set val(task_name), val(dataset_name), val(image), val(hash) from ch_task_dataset_image_hash
 
     output:
     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
@@ -297,15 +298,16 @@ process method_images {
     set val(task_name), val(method_name) from ch_task_method_pairs
 
     output:
-    set val(task_name), val(method_name), stdout into ch_task_method_image_triplets
+    set val(task_name), val(method_name), env(IMAGE), env(HASH) into ch_task_method_image_hash
 
     script:
     """
-    openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"
+    IMAGE=`openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --methods --task ${task_name} ${method_name}`
     """
 }
 
-ch_task_method_image_triplets
+ch_task_method_image_hash
     .combine( ch_loaded_datasets, by: 0)
     .set { ch_dataset_methods }
 
@@ -319,7 +321,7 @@ process run_method {
     // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(method_name), val(image), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
+    set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
 
     output:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
@@ -365,22 +367,23 @@ ch_list_metrics
  * STEP 6.5 - Fetch metric images
  */
 process metric_images {
-    tag "${task_name}-${dataset_name}"
+    tag "${task_name}-${metric_name}"
     label 'process_low'
 
     input:
     set val(task_name), val(metric_name) from ch_task_metric_pairs
 
     output:
-    set val(task_name), val(metric_name), stdout into ch_task_metric_image_triplets
+    set val(task_name), val(metric_name), env(IMAGE), env(HASH) into ch_task_metric_image_hash
 
     script:
     """
-    openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"
+    IMAGE=`openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --metrics --task ${task_name} ${metric_name}`
     """
 }
 
-ch_task_metric_image_triplets
+ch_task_metric_image_hash
     .combine(ch_ran_methods, by:0)
     .set { ch_dataset_method_metrics }
 
@@ -395,7 +398,7 @@ process run_metric {
     publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(metric_name), val(image), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
+    set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
 
     output:
     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
