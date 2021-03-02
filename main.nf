@@ -401,7 +401,7 @@ process run_metric {
     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
 
     script:
-    metric_txt = "${task_name}_${dataset_name}_${method_name}_${metric_name}.metric.txt"
+    metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
     """
     openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
     """
