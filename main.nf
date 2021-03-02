@@ -392,7 +392,7 @@ process run_metric {
     tag "${task_name}-${dataset_name}-${method_name}-${metric_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
-    publishDir "${params.outdir}/results/metrics", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
 
     input:
     set val(task_name), val(metric_name), val(image), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
