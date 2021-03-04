@@ -98,6 +98,9 @@ summary['Launch dir']       = workflow.launchDir
 summary['Working dir']      = workflow.workDir
 summary['Script dir']       = workflow.projectDir
 summary['User']             = workflow.userName
+if (workflow.profile.contains('aws')) {
+    if (params.branch == false) exit 1, "If running on AWS, please specify --branch"
+}
 if (workflow.profile.contains('awsbatch')) {
     summary['AWS Region']   = params.awsregion
     summary['AWS Queue']    = params.awsqueue
