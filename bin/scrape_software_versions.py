@@ -5,17 +5,15 @@ import re
 
 # TODO nf-core: Add additional regexes for new tools in process get_software_versions
 regexes = {
-    "nf-core/openproblems": ["v_pipeline.txt", r"(\S+)"],
+    "nf-openproblems": ["v_pipeline.txt", r"(\S+)"],
     "Nextflow": ["v_nextflow.txt", r"(\S+)"],
     "Python": ["v_python.txt", r"Python (\S+)"],
+    "openproblems": ['v_openproblems.txt', r"(\S+)"]
 }
 results = OrderedDict()
-results["nf-core/openproblems"] = '<span style="color:#999999;">N/A</span>'
-results["Nextflow"] = '<span style="color:#999999;">N/A</span>'
-results["Python"] = '<span style="color:#999999;">N/A</span>'
-
 # Search each file using its regex
 for k, v in regexes.items():
+    results[k] = '<span style="color:#999999;">N/A</span>'
     try:
         with open(v[0]) as x:
             versions = x.read()
@@ -23,19 +21,14 @@ for k, v in regexes.items():
             if match:
                 results[k] = "v{}".format(match.group(1))
     except IOError:
-        results[k] = False
-
-# Remove software set to false in results
-for k in list(results):
-    if not results[k]:
-        del results[k]
+        pass
 
 # Dump to YAML
 print(
     """
 id: 'software_versions'
-section_name: 'nf-core/openproblems Software Versions'
-section_href: 'https://github.com/nf-core/openproblems'
+section_name: 'singlecellopenproblems/nf-openproblems Software Versions'
+section_href: 'https://github.com/singlecellopenproblems/nf-openproblems'
 plot_type: 'html'
 description: 'are collected at run time from the software output.'
 data: |
