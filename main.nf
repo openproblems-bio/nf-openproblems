@@ -158,7 +158,7 @@ process get_software_versions {
     """
     echo $workflow.manifest.version > v_pipeline.txt
     echo $workflow.nextflow.version > v_nextflow.txt
-    python --version > v_python.txt 2>&1
+    python3 --version > v_python.txt 2>&1
     openproblems-cli --version > v_openproblems.txt
     scrape_software_versions.py &> software_versions_mqc.yaml
     """
