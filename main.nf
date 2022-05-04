@@ -90,22 +90,6 @@ log.info "-\033[2m--------------------------------------------------\033[0m-"
 // Check the hostnames against configured profiles
 checkHostname()
 
-Channel.from(summary.collect{ [it.key, it.value] })
-    .map { k,v -> "<dt>$k</dt><dd><samp>${v ?: '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
-    .reduce { a, b -> return [a, b].join("\n            ") }
-    .map { x -> """
-    id: 'nf-core-openproblems-summary'
-    description: " - this information is collected when the pipeline is started."
-    section_name: 'nf-core/openproblems Workflow Summary'
-    section_href: 'https://github.com/nf-core/openproblems'
-    plot_type: 'html'
-    data: |
-        <dl class=\"dl-horizontal\">
-            $x
-        </dl>
-    """.stripIndent() }
-    .set { ch_workflow_summary }
-
 /*
  * Parse software version numbers
  */
@@ -171,7 +155,6 @@ process list_datasets {
 }
 
 ch_list_datasets
-    .dump( tag: 'ch_list_datasets' )
     .map { it -> tuple(
         it[0],
         it[1].splitText()*.replaceAll("\n", "")
@@ -366,8 +349,8 @@ process run_metric {
     input:
     set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
 
-    output:
-    set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
+//     output:
+//     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
 
     script:
     metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
