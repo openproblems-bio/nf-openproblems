@@ -7,7 +7,9 @@ regexes = {
     "nf-openproblems": ["v_pipeline.txt", r"(\S+)"],
     "Nextflow": ["v_nextflow.txt", r"(\S+)"],
     "Python": ["v_python.txt", r"Python (\S+)"],
-    "openproblems": ['v_openproblems.txt', r"(\S+)"]
+    "openproblems": ['v_openproblems.txt', r"(\S+)"],
+    "bash": ['v_bash.txt', r"GNU bash, version (\S+)"],
+    "java": ['v_java.txt', r"(\S+)"]
 }
 results = OrderedDict()
 # Search each file using its regex
