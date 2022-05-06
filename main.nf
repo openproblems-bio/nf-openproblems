@@ -280,7 +280,7 @@ process run_method {
     script:
     method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
     """
-    openproblems-cli run --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
+    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
     """
 }
 
