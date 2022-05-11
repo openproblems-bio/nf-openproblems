@@ -31,6 +31,7 @@ def helpMessage() {
       --outdir [file]                 The output directory where the results will be saved
       --publish_dir_mode [str]        Mode for publishing results in the output directory. Available: symlink, rellink, link, copy, copyNoFollow, move (Default: copy)
       --branch [str]									Short name (<80 characters) of the git branch (used to define the S3 subdirectory)
+      --github_pat [str]							Optional personal access token for triggering GitHub webhook on completion
       -name [str]                     Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
     """.stripIndent()
 }
@@ -424,6 +425,21 @@ workflow.onComplete {
     }
 
     if (workflow.success) {
+				if (params.github_pat) {
+						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
+						def data = '{"event_type": "benchmark_complete"}'
+						post.setRequestMethod("POST")
+						post.setRequestProperty("Content-Type", "application/json")
+						post.setRequestProperty("Authorization", "token ${params.github_pat}")
+						def postRC = post.getResponseCode();
+						if (postRC.equals(200)) {
+								log.info "GitHub webhook posted successfully"
+						} else {
+							log.info "GitHub webhook failed (${postRC})"
+						}
+				} else {
+					log.info "No GitHub PAT, didn't send webhook"
+				}
         log.info "-${c_purple}[nf-core/openproblems]${c_green} Pipeline completed successfully${c_reset}-"
     } else {
         checkHostname()
