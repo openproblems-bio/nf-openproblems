@@ -107,7 +107,7 @@ process get_software_versions {
     python3 --version > v_python.txt 2>&1
     openproblems-cli --version > v_openproblems.txt
     bash --version | head -n 1 > v_bash.txt
-    javac -version | head -n 1 > v_java.txt
+    javac -version || echo "" | head -n 1 > v_java.txt
     scrape_software_versions.py
     """
 }
