@@ -436,7 +436,7 @@ workflow.onComplete {
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
 						post.setRequestProperty("Authorization", "Bearer ${params.github_pat}")
 						post.setDoOutput(true)
-						post.getOutputStream().write(message.getBytes("UTF-8"));
+						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
 						if (postRC.equals(200)) {
 								log.info "GitHub webhook posted successfully"
