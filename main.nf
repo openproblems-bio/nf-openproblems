@@ -364,7 +364,6 @@ process run_metric {
 process store_github_pat {
     label 'process_low'
     secret 'github_pat'
-    errorStrategy 'ignore'
 
     output:
     file(github_pat_txt)
