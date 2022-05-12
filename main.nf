@@ -423,7 +423,7 @@ workflow.onComplete {
     }
 
     if (workflow.success) {
-				if (workflow.env.GITHUB_PAT != "") {
+				if (params.branch == "main" && !params.use_test_data) {
 						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
 						def stdout = new StringBuilder()
@@ -431,18 +431,19 @@ workflow.onComplete {
 						proc.waitForProcessOutput(stdout, stderr);
 
 						// send webhook to github
+						def github_pat = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim()
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
 						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
-						post.setRequestProperty("Authorization", "Bearer ${workflow.env.GITHUB_PAT}")
+						post.setRequestProperty("Authorization", "Bearer ${github_pat}")
 						post.setDoOutput(true)
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
 						if (postRC.equals(200)) {
 								log.info "GitHub webhook posted successfully"
 						} else {
-							log.info "GitHub webhook failed (${postRC})"
+								log.info "GitHub webhook failed (${postRC})"
 						}
 				} else {
 					log.info "No GitHub PAT, didn't send webhook"
