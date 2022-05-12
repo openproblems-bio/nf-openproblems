@@ -422,16 +422,19 @@ workflow.onComplete {
     }
 
     if (workflow.success) {
-				if (secrets.github_pat) {
-						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
+				if (env.GITHUB_PAT) {
+						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
 						def stdout = new StringBuilder()
 						def stderr = new StringBuilder()
 						proc.waitForProcessOutput(stdout, stderr);
+
+						// send webhook to github
+						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
 						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
-						post.setRequestProperty("Authorization", "Bearer ${secrets.github_pat}")
+						post.setRequestProperty("Authorization", "Bearer ${env.GITHUB_PAT}")
 						post.setDoOutput(true)
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
