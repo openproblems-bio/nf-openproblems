@@ -446,7 +446,7 @@ workflow.onComplete {
 								log.info "GitHub webhook failed (${postRC})"
 						}
 				} else {
-					log.info "No GitHub PAT, didn't send webhook"
+					log.info "Not running full benchmark on main, didn't send GitHub webhook"
 				}
         log.info "-${c_purple}[nf-core/openproblems]${c_green} Pipeline completed successfully${c_reset}-"
     } else {
