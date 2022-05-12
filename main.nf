@@ -352,8 +352,8 @@ process run_metric {
     input:
     set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
 
-//     output:
-//     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
+    output:
+    set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
 
     script:
     metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
@@ -361,8 +361,6 @@ process run_metric {
     openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
     """
 }
-
-
 
 /*
  * Completion e-mail notification
@@ -425,7 +423,7 @@ workflow.onComplete {
     }
 
     if (workflow.success) {
-				if (params.github_pat) {
+				if (secrets.github_pat) {
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
 						def stdout = new StringBuilder()
@@ -434,7 +432,7 @@ workflow.onComplete {
 						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
-						post.setRequestProperty("Authorization", "Bearer ${params.github_pat}")
+						post.setRequestProperty("Authorization", "Bearer ${secrets.github_pat}")
 						post.setDoOutput(true)
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
