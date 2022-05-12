@@ -361,19 +361,7 @@ process run_metric {
     """
 }
 
-process store_github_pat {
-    label 'process_low'
-    secret 'github_pat'
 
-    output:
-    file(github_pat_txt)
-
-    script:
-    github_pat_txt = "github_pat.txt"
-    """
-    echo \$github_pat >> ${github_pat_txt}
-    """
-}
 /*
  * Completion e-mail notification
  */
@@ -434,10 +422,8 @@ workflow.onComplete {
         log.info "-${c_green}Number of successfully ran process(es) : ${workflow.stats.succeedCount} ${c_reset}-"
     }
 
-		def github_pat = new File('${params.outdir}/github_pat.txt').text.trim()
-		"${params.outdir}/github_pat.txt".execute()
     if (workflow.success) {
-				if (github_pat != "") {
+				if (workflow.env.GITHUB_PAT != "") {
 						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
 						def stdout = new StringBuilder()
@@ -449,7 +435,7 @@ workflow.onComplete {
 						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
-						post.setRequestProperty("Authorization", "Bearer ${github_pat}")
+						post.setRequestProperty("Authorization", "Bearer ${workflow.env.GITHUB_PAT}")
 						post.setDoOutput(true)
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
