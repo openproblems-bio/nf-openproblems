@@ -427,10 +427,15 @@ workflow.onComplete {
     if (workflow.success) {
 				if (params.github_pat) {
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
-						def data = '{"event_type": "benchmark_complete"}'
+						String executionTrace = groovy.json.JsonOutput.toJson(
+								new File(output_d, "execution_trace.txt").getText('UTF-8')
+						)
+						def data = '{"event_type": "benchmark_complete", "client_payload": {"execution_trace" : ${executionTrace}}}'
 						post.setRequestMethod("POST")
-						post.setRequestProperty("Content-Type", "application/json")
-						post.setRequestProperty("Authorization", "token ${params.github_pat}")
+						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
+						post.setRequestProperty("Authorization", "Bearer ${params.github_pat}")
+						post.setDoOutput(true)
+						post.getOutputStream().write(message.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
 						if (postRC.equals(200)) {
 								log.info "GitHub webhook posted successfully"
