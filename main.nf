@@ -432,6 +432,7 @@ workflow.onComplete {
 
 						// fetch github PAT
 						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim()
+						log.info github_pat_secret
 						def parser = new groovy.json.JsonSlurper()
 						def github_pat = parser.parseText(github_pat_secret).SecretString
 
