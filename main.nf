@@ -430,8 +430,12 @@ workflow.onComplete {
 						def stderr = new StringBuilder()
 						proc.waitForProcessOutput(stdout, stderr);
 
+						// fetch github PAT
+						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim()
+						def parser = new JsonSlurper()
+						def github_pat = parser.parseText(github_pat_secret).SecretString
+
 						// send webhook to github
-						def github_pat = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim()
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
 						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
