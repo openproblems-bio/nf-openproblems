@@ -362,9 +362,9 @@ process run_metric {
 }
 
 process store_github_pat {
-		tag "store_github_pat"
     label 'process_low'
     secret 'github_pat'
+    errorStrategy 'ignore'
 
     output:
     file(github_pat_txt)
@@ -372,7 +372,7 @@ process store_github_pat {
     script:
     github_pat_txt = "github_pat.txt"
     """
-    echo ${secrets.github_pat} >> ${github_pat_txt}
+    echo \$github_pat >> ${github_pat_txt}
     """
 }
 /*
