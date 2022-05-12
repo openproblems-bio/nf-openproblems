@@ -31,7 +31,6 @@ def helpMessage() {
       --outdir [file]                 The output directory where the results will be saved
       --publish_dir_mode [str]        Mode for publishing results in the output directory. Available: symlink, rellink, link, copy, copyNoFollow, move (Default: copy)
       --branch [str]									Short name (<80 characters) of the git branch (used to define the S3 subdirectory)
-      --github_pat [str]							Optional personal access token for triggering GitHub webhook on completion
       -name [str]                     Name for the pipeline run. If not specified, Nextflow will automatically generate a random mnemonic
     """.stripIndent()
 }
