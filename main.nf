@@ -427,10 +427,11 @@ workflow.onComplete {
     if (workflow.success) {
 				if (params.github_pat) {
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
-						String executionTrace = groovy.json.JsonOutput.toJson(
-								new File(output_d, "execution_trace.txt").getText('UTF-8')
-						)
-						def data = '{"event_type": "benchmark_complete", "client_payload": {"execution_trace" : ${executionTrace}}}'
+						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
+						def stdout = new StringBuilder()
+						def stderr = new StringBuilder()
+						proc.waitForProcessOutput(stdout, stderr);
+						def data = '{"event_type": "benchmark_complete"}'
 						post.setRequestMethod("POST")
 						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
 						post.setRequestProperty("Authorization", "Bearer ${params.github_pat}")
