@@ -426,15 +426,15 @@ workflow.onComplete {
 				if (params.branch == "main") {// && !params.use_test_data) {
 						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
-						def stdout = new StringBuilder()
-						def stderr = new StringBuilder()
-						proc.waitForProcessOutput(stdout, stderr);
+						def s3_stdout = new StringBuilder()
+						def s3_stderr = new StringBuilder()
+						proc.waitForProcessOutput(s3_stdout, s3_stderr);
 
 						// fetch github PAT
 						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute()
-						def stdout = new StringBuilder()
-						def stderr = new StringBuilder()
-						proc.waitForProcessOutput(stdout, stderr);
+						def secret_stdout = new StringBuilder()
+						def secret_stderr = new StringBuilder()
+						proc.waitForProcessOutput(secret_stdout, secret_stderr);
 						log.info stdout
 						log.info stderr
 						def parser = new groovy.json.JsonSlurper();
