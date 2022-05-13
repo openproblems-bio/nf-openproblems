@@ -426,10 +426,14 @@ workflow.onComplete {
 				if (params.branch == "main") {// && !params.use_test_data) {
 						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
-						def proc = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
 						def s3_stdout = new StringBuilder()
 						def s3_stderr = new StringBuilder()
 						proc.waitForProcessOutput(s3_stdout, s3_stderr);
+						// sync log to s3
+						def proc_log = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
+						def s3_stdout_log = new StringBuilder()
+						def s3_stderr_log = new StringBuilder()
+						proc_log.waitForProcessOutput(s3_stdout_log, s3_stderr_log);
 
 						// fetch github PAT
 						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat")
