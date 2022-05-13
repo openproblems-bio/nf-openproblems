@@ -432,13 +432,6 @@ workflow.onComplete {
 
 						// fetch github PAT
 						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat").value
-						log.info github_pat
-
-						// sync log to s3
-						def proc_log = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
-						def s3_stdout_log = new StringBuilder()
-						def s3_stderr_log = new StringBuilder()
-						proc_log.waitForProcessOutput(s3_stdout_log, s3_stderr_log);
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
@@ -454,6 +447,12 @@ workflow.onComplete {
 						} else {
 								log.info "GitHub webhook failed (${postRC})"
 						}
+
+						// sync log to s3
+						def proc_log = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
+						def s3_stdout_log = new StringBuilder()
+						def s3_stderr_log = new StringBuilder()
+						proc_log.waitForProcessOutput(s3_stdout_log, s3_stderr_log);
 				} else {
 					log.info "Not running full benchmark on main, didn't send GitHub webhook"
 				}
