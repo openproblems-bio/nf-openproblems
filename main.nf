@@ -93,273 +93,273 @@ checkHostname()
 /*
  * Parse software version numbers
  */
-// process get_software_versions {
-//     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
-//     label 'process_low'
-//
-//     output:
-//     file "software_versions.csv"
-//
-//     script:
-//     """
-//     echo $workflow.manifest.version > v_pipeline.txt
-//     echo $workflow.nextflow.version > v_nextflow.txt
-//     python3 --version > v_python.txt 2>&1
-//     openproblems-cli --version > v_openproblems.txt
-//     bash --version | head -n 1 > v_bash.txt
-//     javac -version || echo "" | head -n 1 > v_java.txt
-//     scrape_software_versions.py
-//     """
-// }
-//
-// /*
-//  * STEP 1 - List tasks
-//  */
-// process list_tasks {
-//     label 'process_low'
-//     // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
-//
-//     output:
-//     file(tasks) into ch_list_tasks
-//
-//     script:
-//     tasks = "tasks.txt"
-//     """
-//     openproblems-cli tasks > ${tasks}
-//     """
-// }
-//
-// ch_list_tasks
-//     .splitText() { line -> line.replaceAll("\\n", "") }
-//     .into { ch_task_names_for_list_datasets;
-//             ch_task_names_for_list_methods;
-//             ch_task_names_for_list_metrics }
-//
-// /*
-//  * STEP 2 - List datasets per task
-//  */
-// process list_datasets {
-//     tag "${task_name}"
-//     label 'process_low'
-//     // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
-//
-//     input:
-//     val(task_name) from ch_task_names_for_list_datasets
-//
-//     output:
-//     set val(task_name), file(datasets) into ch_list_datasets
-//
-//     script:
-//     datasets = "${task_name}.datasets.txt"
-//     """
-//     openproblems-cli list --datasets --task ${task_name} > ${datasets}
-//     """
-// }
-//
-// ch_list_datasets
-//     .map { it -> tuple(
-//         it[0],
-//         it[1].splitText()*.replaceAll("\n", "")
-//      ) }
-//     .transpose()
-//     .set { ch_task_dataset_pairs }
-//
-// /*
-//  * STEP 2.5 - Fetch dataset images
-//  */
-// process dataset_images {
-//     tag "${task_name}:${dataset_name}"
-//     label 'process_low'
-//
-//     input:
-//     set val(task_name), val(dataset_name) from ch_task_dataset_pairs
-//
-//     output:
-//     set val(task_name), val(dataset_name), env(IMAGE), env(HASH) into ch_task_dataset_image_hash
-//
-//     script:
-//     """
-//     IMAGE=`openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"`
-//     HASH=`openproblems-cli hash --datasets --task ${task_name} ${dataset_name}`
-//     """
-// }
-//
-// /*
-//  * STEP 3 - Load datasets
-//  */
-// process load_dataset {
-//     tag "${task_name}:${dataset_name}:${image}"
-//     container "${params.container_host}${image}"
-//     label 'process_batch'
-//
-//     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
-//
-//     input:
-//     set val(task_name), val(dataset_name), val(image), val(hash) from ch_task_dataset_image_hash
-//
-//     output:
-//     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
-//
-//     script:
-//     dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
-//     """
-//     openproblems-cli load ${params.test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
-//     """
-// }
-//
-//
-// /*
-//  * STEP 4 - List methods per task
-//  */
-// process list_methods {
-//     tag "${task_name}"
-//     label 'process_low'
-//     // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
-//
-//     input:
-//     val(task_name) from ch_task_names_for_list_methods
-//
-//     output:
-//     set val(task_name), file(methods) into ch_list_methods
-//
-//     script:
-//     methods = "${task_name}.methods.txt"
-//     """
-//     openproblems-cli list --methods --task ${task_name} > ${methods}
-//     """
-// }
-//
-// ch_list_methods
-//     .map { it -> tuple(
-//         it[0],
-//         it[1].splitText()*.replaceAll("\n", "")
-//         )}
-//     .transpose()
-//     .set { ch_task_method_pairs }
-//
-//
-// /*
-//  * STEP 4.5 - Fetch method images
-//  */
-// process method_images {
-//     tag "${task_name}:${method_name}"
-//     label 'process_low'
-//
-//     input:
-//     set val(task_name), val(method_name) from ch_task_method_pairs
-//
-//     output:
-//     set val(task_name), val(method_name), env(IMAGE), env(HASH) into ch_task_method_image_hash
-//
-//     script:
-//     """
-//     IMAGE=`openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"`
-//     HASH=`openproblems-cli hash --methods --task ${task_name} ${method_name}`
-//     """
-// }
-//
-// ch_task_method_image_hash
-//     .combine( ch_loaded_datasets, by: 0)
-//     .set { ch_dataset_methods }
-//
-// /*
-// * STEP 5 - Run methods
-// */
-// process run_method {
-//     tag "${task_name}:${method_name}-${dataset_name}:${image}"
-//     container "${params.container_host}${image}"
-//     label 'process_batch'
-//     // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
-//
-//     input:
-//     set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
-//
-//     output:
-//     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
-//
-//     script:
-//     method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
-//     """
-//     openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
-//     """
-// }
-//
-//
-// /*
-//  * STEP 6 - List metrics per task
-//  */
-// process list_metrics {
-//     tag "${task_name}"
-//     label 'process_low'
-//     // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
-//
-//     input:
-//     val(task_name) from ch_task_names_for_list_metrics
-//
-//     output:
-//     set val(task_name), file(metrics) into ch_list_metrics
-//
-//     script:
-//     metrics = "${task_name}.metrics.txt"
-//     """
-//     openproblems-cli list --metrics --task ${task_name} > ${metrics}
-//     """
-// }
-//
-// ch_list_metrics
-//     .map { it -> tuple(
-//         it[0],
-//         it[1].splitText()*.replaceAll("\n", "")
-//     ) }
-//     .transpose()
-//     .set { ch_task_metric_pairs }
-//
-// /*
-//  * STEP 6.5 - Fetch metric images
-//  */
-// process metric_images {
-//     tag "${task_name}:${metric_name}"
-//     label 'process_low'
-//
-//     input:
-//     set val(task_name), val(metric_name) from ch_task_metric_pairs
-//
-//     output:
-//     set val(task_name), val(metric_name), env(IMAGE), env(HASH) into ch_task_metric_image_hash
-//
-//     script:
-//     """
-//     IMAGE=`openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"`
-//     HASH=`openproblems-cli hash --metrics --task ${task_name} ${metric_name}`
-//     """
-// }
-//
-// ch_task_metric_image_hash
-//     .combine(ch_ran_methods, by:0)
-//     .set { ch_dataset_method_metrics }
-//
-//
-// /*
-// * STEP 7 - Run metric
-// */
-// process run_metric {
-//     tag "${task_name}:${metric_name}-${method_name}-${dataset_name}:${image}"
-//     container "${params.container_host}${image}"
-//     label 'process_batch'
-//     publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
-//
-//     input:
-//     set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
-//
-//     output:
-//     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
-//
-//     script:
-//     metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
-//     """
-//     openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
-//     """
-// }
+process get_software_versions {
+    publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
+    label 'process_low'
+
+    output:
+    file "software_versions.csv"
+
+    script:
+    """
+    echo $workflow.manifest.version > v_pipeline.txt
+    echo $workflow.nextflow.version > v_nextflow.txt
+    python3 --version > v_python.txt 2>&1
+    openproblems-cli --version > v_openproblems.txt
+    bash --version | head -n 1 > v_bash.txt
+    javac -version || echo "" | head -n 1 > v_java.txt
+    scrape_software_versions.py
+    """
+}
+
+/*
+ * STEP 1 - List tasks
+ */
+process list_tasks {
+    label 'process_low'
+    // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
+
+    output:
+    file(tasks) into ch_list_tasks
+
+    script:
+    tasks = "tasks.txt"
+    """
+    openproblems-cli tasks > ${tasks}
+    """
+}
+
+ch_list_tasks
+    .splitText() { line -> line.replaceAll("\\n", "") }
+    .into { ch_task_names_for_list_datasets;
+            ch_task_names_for_list_methods;
+            ch_task_names_for_list_metrics }
+
+/*
+ * STEP 2 - List datasets per task
+ */
+process list_datasets {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_task_names_for_list_datasets
+
+    output:
+    set val(task_name), file(datasets) into ch_list_datasets
+
+    script:
+    datasets = "${task_name}.datasets.txt"
+    """
+    openproblems-cli list --datasets --task ${task_name} > ${datasets}
+    """
+}
+
+ch_list_datasets
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+     ) }
+    .transpose()
+    .set { ch_task_dataset_pairs }
+
+/*
+ * STEP 2.5 - Fetch dataset images
+ */
+process dataset_images {
+    tag "${task_name}:${dataset_name}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(dataset_name) from ch_task_dataset_pairs
+
+    output:
+    set val(task_name), val(dataset_name), env(IMAGE), env(HASH) into ch_task_dataset_image_hash
+
+    script:
+    """
+    IMAGE=`openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --datasets --task ${task_name} ${dataset_name}`
+    """
+}
+
+/*
+ * STEP 3 - Load datasets
+ */
+process load_dataset {
+    tag "${task_name}:${dataset_name}:${image}"
+    container "${params.container_host}${image}"
+    label 'process_batch'
+
+    // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(dataset_name), val(image), val(hash) from ch_task_dataset_image_hash
+
+    output:
+    set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
+
+    script:
+    dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
+    """
+    openproblems-cli load ${params.test_flag} --task ${task_name} --output ${dataset_h5ad} ${dataset_name}
+    """
+}
+
+
+/*
+ * STEP 4 - List methods per task
+ */
+process list_methods {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_task_names_for_list_methods
+
+    output:
+    set val(task_name), file(methods) into ch_list_methods
+
+    script:
+    methods = "${task_name}.methods.txt"
+    """
+    openproblems-cli list --methods --task ${task_name} > ${methods}
+    """
+}
+
+ch_list_methods
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+        )}
+    .transpose()
+    .set { ch_task_method_pairs }
+
+
+/*
+ * STEP 4.5 - Fetch method images
+ */
+process method_images {
+    tag "${task_name}:${method_name}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(method_name) from ch_task_method_pairs
+
+    output:
+    set val(task_name), val(method_name), env(IMAGE), env(HASH) into ch_task_method_image_hash
+
+    script:
+    """
+    IMAGE=`openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --methods --task ${task_name} ${method_name}`
+    """
+}
+
+ch_task_method_image_hash
+    .combine( ch_loaded_datasets, by: 0)
+    .set { ch_dataset_methods }
+
+/*
+* STEP 5 - Run methods
+*/
+process run_method {
+    tag "${task_name}:${method_name}-${dataset_name}:${image}"
+    container "${params.container_host}${image}"
+    label 'process_batch'
+    // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
+
+    script:
+    method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
+    """
+    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
+    """
+}
+
+
+/*
+ * STEP 6 - List metrics per task
+ */
+process list_metrics {
+    tag "${task_name}"
+    label 'process_low'
+    // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
+
+    input:
+    val(task_name) from ch_task_names_for_list_metrics
+
+    output:
+    set val(task_name), file(metrics) into ch_list_metrics
+
+    script:
+    metrics = "${task_name}.metrics.txt"
+    """
+    openproblems-cli list --metrics --task ${task_name} > ${metrics}
+    """
+}
+
+ch_list_metrics
+    .map { it -> tuple(
+        it[0],
+        it[1].splitText()*.replaceAll("\n", "")
+    ) }
+    .transpose()
+    .set { ch_task_metric_pairs }
+
+/*
+ * STEP 6.5 - Fetch metric images
+ */
+process metric_images {
+    tag "${task_name}:${metric_name}"
+    label 'process_low'
+
+    input:
+    set val(task_name), val(metric_name) from ch_task_metric_pairs
+
+    output:
+    set val(task_name), val(metric_name), env(IMAGE), env(HASH) into ch_task_metric_image_hash
+
+    script:
+    """
+    IMAGE=`openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"`
+    HASH=`openproblems-cli hash --metrics --task ${task_name} ${metric_name}`
+    """
+}
+
+ch_task_metric_image_hash
+    .combine(ch_ran_methods, by:0)
+    .set { ch_dataset_method_metrics }
+
+
+/*
+* STEP 7 - Run metric
+*/
+process run_metric {
+    tag "${task_name}:${metric_name}-${method_name}-${dataset_name}:${image}"
+    container "${params.container_host}${image}"
+    label 'process_batch'
+    publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
+
+    output:
+    set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
+
+    script:
+    metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
+    """
+    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
+    """
+}
 
 
 /*
@@ -442,7 +442,7 @@ workflow.onComplete {
 						post.setDoOutput(true);
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
-						if (postRC.equals(200)) {
+						if (postRC.equals(204)) {
 								log.info "GitHub webhook posted successfully"
 						} else {
 								log.info "GitHub webhook failed (${postRC})"
