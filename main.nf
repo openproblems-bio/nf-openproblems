@@ -435,10 +435,10 @@ workflow.onComplete {
 						def secret_stdout = new StringBuilder()
 						def secret_stderr = new StringBuilder()
 						proc.waitForProcessOutput(secret_stdout, secret_stderr);
-						log.info secret_stdout
-						log.info secret_stderr
+						log.info secret_stdout.toString();
+						log.info secret_stderr.toString();
 						def parser = new groovy.json.JsonSlurper();
-						def github_pat = parser.parseText(secret_stdout).SecretString;
+						def github_pat = parser.parseText(secret_stdout.toString()).SecretString;
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
