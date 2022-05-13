@@ -431,18 +431,18 @@ workflow.onComplete {
 						proc.waitForProcessOutput(stdout, stderr);
 
 						// fetch github PAT
-						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim()
-						println github_pat_secret;
-						def parser = new groovy.json.JsonSlurper()
-						def github_pat = parser.parseText(github_pat_secret).SecretString
+						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim();
+						log.info github_pat_secret
+						def parser = new groovy.json.JsonSlurper();
+						def github_pat = parser.parseText(github_pat_secret).SecretString;
 
 						// send webhook to github
-						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection()
-						def data = '{"event_type": "benchmark_complete"}'
-						post.setRequestMethod("POST")
-						post.setRequestProperty("Accept", "application/vnd.github.v3+json")
-						post.setRequestProperty("Authorization", "Bearer ${github_pat}")
-						post.setDoOutput(true)
+						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
+						def data = '{"event_type": "benchmark_complete"}';
+						post.setRequestMethod("POST");
+						post.setRequestProperty("Accept", "application/vnd.github.v3+json");
+						post.setRequestProperty("Authorization", "Bearer ${github_pat}");
+						post.setDoOutput(true);
 						post.getOutputStream().write(data.getBytes("UTF-8"));
 						def postRC = post.getResponseCode();
 						if (postRC.equals(200)) {
