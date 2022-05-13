@@ -426,6 +426,7 @@ workflow.onComplete {
 				if (params.branch == "main") {// && !params.use_test_data) {
 						// sync output to s3
 						def proc = "aws s3 cp --quiet --recursive ${params.outdir} s3://openproblems-nextflow/cwd_main/".execute()
+						def proc = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
 						def s3_stdout = new StringBuilder()
 						def s3_stderr = new StringBuilder()
 						proc.waitForProcessOutput(s3_stdout, s3_stderr);
