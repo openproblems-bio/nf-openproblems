@@ -435,8 +435,8 @@ workflow.onComplete {
 						def secret_stdout = new StringBuilder()
 						def secret_stderr = new StringBuilder()
 						proc.waitForProcessOutput(secret_stdout, secret_stderr);
-						log.info stdout
-						log.info stderr
+						log.info secret_stdout
+						log.info secret_stderr
 						def parser = new groovy.json.JsonSlurper();
 						def github_pat = parser.parseText(stdout).SecretString;
 
