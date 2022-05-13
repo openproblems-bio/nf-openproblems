@@ -429,15 +429,16 @@ workflow.onComplete {
 						def s3_stdout = new StringBuilder()
 						def s3_stderr = new StringBuilder()
 						proc.waitForProcessOutput(s3_stdout, s3_stderr);
+
+						// fetch github PAT
+						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat").value
+						log.info github_pat
+
 						// sync log to s3
 						def proc_log = "aws s3 cp --quiet ${projectDir}/.nextflow.log s3://openproblems-nextflow/cwd_main/".execute()
 						def s3_stdout_log = new StringBuilder()
 						def s3_stderr_log = new StringBuilder()
 						proc_log.waitForProcessOutput(s3_stdout_log, s3_stderr_log);
-
-						// fetch github PAT
-						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat")
-						log.info github_pat
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
