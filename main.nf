@@ -431,10 +431,14 @@ workflow.onComplete {
 						proc.waitForProcessOutput(stdout, stderr);
 
 						// fetch github PAT
-						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute().text.trim();
-						log.info github_pat_secret
+						def github_pat_secret = "aws secretsmanager get-secret-value --secret-id github_workflow_pat".execute()
+						def stdout = new StringBuilder()
+						def stderr = new StringBuilder()
+						proc.waitForProcessOutput(stdout, stderr);
+						log.info stdout
+						log.info stderr
 						def parser = new groovy.json.JsonSlurper();
-						def github_pat = parser.parseText(github_pat_secret).SecretString;
+						def github_pat = parser.parseText(stdout).SecretString;
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
