@@ -93,41 +93,41 @@ checkHostname()
 /*
  * Parse software version numbers
  */
-process get_software_versions {
-    publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
-    label 'process_low'
-
-    output:
-    file "software_versions.csv"
-
-    script:
-    """
-    echo $workflow.manifest.version > v_pipeline.txt
-    echo $workflow.nextflow.version > v_nextflow.txt
-    python3 --version > v_python.txt 2>&1
-    openproblems-cli --version > v_openproblems.txt
-    bash --version | head -n 1 > v_bash.txt
-    javac -version || echo "" | head -n 1 > v_java.txt
-    scrape_software_versions.py
-    """
-}
-
-/*
- * STEP 1 - List tasks
- */
-process list_tasks {
-    label 'process_low'
-    // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
-
-    output:
-    file(tasks) into ch_list_tasks
-
-    script:
-    tasks = "tasks.txt"
-    """
-    openproblems-cli tasks > ${tasks}
-    """
-}
+// process get_software_versions {
+//     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
+//     label 'process_low'
+//
+//     output:
+//     file "software_versions.csv"
+//
+//     script:
+//     """
+//     echo $workflow.manifest.version > v_pipeline.txt
+//     echo $workflow.nextflow.version > v_nextflow.txt
+//     python3 --version > v_python.txt 2>&1
+//     openproblems-cli --version > v_openproblems.txt
+//     bash --version | head -n 1 > v_bash.txt
+//     javac -version || echo "" | head -n 1 > v_java.txt
+//     scrape_software_versions.py
+//     """
+// }
+//
+// /*
+//  * STEP 1 - List tasks
+//  */
+// process list_tasks {
+//     label 'process_low'
+//     // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
+//
+//     output:
+//     file(tasks) into ch_list_tasks
+//
+//     script:
+//     tasks = "tasks.txt"
+//     """
+//     openproblems-cli tasks > ${tasks}
+//     """
+// }
 //
 // ch_list_tasks
 //     .splitText() { line -> line.replaceAll("\\n", "") }
