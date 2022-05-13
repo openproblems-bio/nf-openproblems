@@ -432,6 +432,7 @@ workflow.onComplete {
 
 						// fetch github PAT
 						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat")
+						log.info github_pat
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
