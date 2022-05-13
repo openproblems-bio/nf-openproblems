@@ -431,15 +431,7 @@ workflow.onComplete {
 						proc.waitForProcessOutput(s3_stdout, s3_stderr);
 
 						// fetch github PAT
-						def secretsClient = software.amazon.awssdk.services.secretsmanager.SecretsManagerClient.builder()
-										.region(software.amazon.awssdk.regions.Region.US_WEST_2)
-										.build();
-            def valueRequest = software.amazon.awssdk.services.secretsmanager.model.GetSecretValueRequest.builder()
-                .secretId("github_workflow_pat")
-                .build();
-            def valueResponse = secretsClient.getSecretValue(valueRequest);
-            def github_pat = valueResponse.secretString();
-						secretsClient.close();
+						def github_pat = nextflow.secret.SecretsLoader.instance.load().getSecret("github_pat")
 
 						// send webhook to github
 						def post = new URL("https://api.github.com/repos/openproblems-bio/openproblems/dispatches").openConnection();
