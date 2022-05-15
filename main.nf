@@ -275,15 +275,38 @@ process run_method {
     set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
 
     output:
-    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad) into ch_ran_methods
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version) into ch_ran_methods
 
     script:
     method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
+    method_version = "${task_name}.${dataset_name}.${method_name}.method.txt"
     """
-    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name}
+    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name} > ${method_version}
     """
 }
 
+ch_ran_methods
+    .tap { ch_ran_methods_to_code_versions }
+    .set { ch_ran_methods_to_metrics }
+
+/*
+ * STEP 5.5 - Publish code versions
+ */
+
+process publish_code_versions {
+    tag "${task_name}:${method_name}-${dataset_name}"
+    label 'process_low'
+    publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
+
+    input:
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_in) from ch_ran_methods_to_code_versions
+
+    script:
+    method_version_out = "${task_name}.${dataset_name}.${method_name}.method.txt"
+    """
+    cat ${method_version_in} > ${method_version_out}
+    """
+}
 
 /*
  * STEP 6 - List metrics per task
@@ -335,7 +358,7 @@ process metric_images {
 }
 
 ch_task_metric_image_hash
-    .combine(ch_ran_methods, by:0)
+    .combine(ch_ran_methods_to_metrics, by:0)
     .set { ch_dataset_method_metrics }
 
 
@@ -349,7 +372,7 @@ process run_metric {
     publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad) from ch_dataset_method_metrics
+    set val(task_name), val(metric_name), val(image), val(hash), val(dataset_name), val(method_name), file(method_h5ad), file(method_version) from ch_dataset_method_metrics
 
     output:
     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
