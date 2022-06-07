@@ -301,6 +301,9 @@ process publish_code_versions {
     input:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_in) from ch_ran_methods_to_code_versions
 
+    output:
+    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_out) into ch_published_code_versions
+
     script:
     method_version_out = "${task_name}.${dataset_name}.${method_name}.method.txt"
     """
