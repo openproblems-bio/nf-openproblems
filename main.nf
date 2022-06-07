@@ -296,7 +296,7 @@ ch_ran_methods
 process publish_code_versions {
     tag "${task_name}:${method_name}-${dataset_name}"
     label 'process_low'
-    publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/methods", mode: params.publish_dir_mode
 
     input:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_in) from ch_ran_methods_to_code_versions
