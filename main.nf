@@ -277,12 +277,12 @@ process run_method {
     output:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version) into ch_ran_methods
 
-    shell:
+    script:
     method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
     method_version = "${task_name}.${dataset_name}.${method_name}.method.txt"
     """
-    if [ $(pip freeze | grep annoy) ]; then pip install --force annoy; fi
-    openproblems-cli run !{params.test_flag} --task !{task_name} --input !{dataset_h5ad} --output !{method_h5ad} !{method_name} > !{method_version}
+    if [ `pip freeze | grep annoy` ]; then pip install --force annoy; fi
+    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name} > ${method_version}
     """
 }
 
