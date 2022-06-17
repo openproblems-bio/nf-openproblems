@@ -269,6 +269,7 @@ process method_images {
 ch_task_method_image_hash
     .tap { ch_task_method_image_hash_for_run_method }
     .map { it -> it[0] }
+    .unique()
     .set { ch_task_names_for_list_metrics }
 
 ch_task_method_image_hash_for_run_method
