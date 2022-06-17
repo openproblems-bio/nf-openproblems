@@ -154,7 +154,7 @@ process list_datasets {
     """
 }
 
-# transpose (task, datasets.txt) into [(task, dataset), (task, dataset), ...]
+// transpose (task, datasets.txt) into [(task, dataset), (task, dataset), ...]
 ch_list_datasets
     .map { it -> tuple(
         it[0],
@@ -183,7 +183,7 @@ process dataset_images {
     """
 }
 
-# send task name to list_methods
+// send task name to list_methods
 ch_task_dataset_image_hash
     .tap { ch_task_dataset_image_hash_for_load_dataset }
     .map { it -> it[0] }
@@ -235,7 +235,7 @@ process list_methods {
     """
 }
 
-# transpose (task, methods.txt) into [(task, method), (task, method), ...]
+// transpose (task, methods.txt) into [(task, method), (task, method), ...]
 ch_list_methods
     .map { it -> tuple(
         it[0],
@@ -265,7 +265,7 @@ process method_images {
     """
 }
 
-# send task name to list_metrics
+// send task name to list_metrics
 ch_task_method_image_hash
     .tap { ch_task_method_image_hash_for_run_method }
     .map { it -> it[0] }
@@ -346,7 +346,7 @@ process list_metrics {
     """
 }
 
-# transpose (task, metrics.txt) into [(task, metric), (task, metric), ...]
+// transpose (task, metrics.txt) into [(task, metric), (task, metric), ...]
 ch_list_metrics
     .map { it -> tuple(
         it[0],
