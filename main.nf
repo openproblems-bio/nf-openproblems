@@ -131,9 +131,7 @@ process list_tasks {
 
 ch_list_tasks
     .splitText() { line -> line.replaceAll("\\n", "") }
-    .into { ch_task_names_for_list_datasets;
-            ch_task_names_for_list_methods;
-            ch_task_names_for_list_metrics }
+    .set { ch_task_names_for_list_datasets }
 
 /*
  * STEP 2 - List datasets per task
@@ -147,7 +145,7 @@ process list_datasets {
     val(task_name) from ch_task_names_for_list_datasets
 
     output:
-    set val(task_name), file(datasets) into ch_list_datasets
+    set val(task_name), file(datasets) into ch_task_list_datasets
 
     script:
     datasets = "${task_name}.datasets.txt"
@@ -155,6 +153,11 @@ process list_datasets {
     openproblems-cli list --datasets --task ${task_name} > ${datasets}
     """
 }
+
+ch_task_list_datasets
+    .tap { ch_list_datasets }
+    .map { it -> it[0] }
+    .set { ch_task_names_for_list_methods }
 
 ch_list_datasets
     .map { it -> tuple(
@@ -220,7 +223,7 @@ process list_methods {
     val(task_name) from ch_task_names_for_list_methods
 
     output:
-    set val(task_name), file(methods) into ch_list_methods
+    set val(task_name), file(methods) into ch_task_list_methods
 
     script:
     methods = "${task_name}.methods.txt"
@@ -228,6 +231,11 @@ process list_methods {
     openproblems-cli list --methods --task ${task_name} > ${methods}
     """
 }
+
+ch_task_list_methods
+    .tap { ch_list_methods }
+    .map { it -> it[0] }
+    .set { ch_task_names_for_list_metrics }
 
 ch_list_methods
     .map { it -> tuple(
