@@ -145,7 +145,7 @@ process list_datasets {
     val(task_name) from ch_task_names_for_list_datasets
 
     output:
-    set val(task_name), file(datasets) into ch_task_list_datasets
+    set val(task_name), file(datasets) into ch_list_datasets
 
     script:
     datasets = "${task_name}.datasets.txt"
@@ -154,11 +154,7 @@ process list_datasets {
     """
 }
 
-ch_task_list_datasets
-    .tap { ch_list_datasets }
-    .map { it -> it[0] }
-    .set { ch_task_names_for_list_methods }
-
+# transpose (task, datasets.txt) into [(task, dataset), (task, dataset), ...]
 ch_list_datasets
     .map { it -> tuple(
         it[0],
@@ -187,6 +183,13 @@ process dataset_images {
     """
 }
 
+# send task name to list_methods
+ch_task_dataset_image_hash
+    .tap { ch_task_dataset_image_hash_for_load_dataset }
+    .map { it -> it[0] }
+    .unique()
+    .set { ch_task_names_for_list_methods }
+
 /*
  * STEP 3 - Load datasets
  */
@@ -198,7 +201,7 @@ process load_dataset {
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
     input:
-    set val(task_name), val(dataset_name), val(image), val(hash) from ch_task_dataset_image_hash
+    set val(task_name), val(dataset_name), val(image), val(hash) from ch_task_dataset_image_hash_for_load_dataset
 
     output:
     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
@@ -232,11 +235,7 @@ process list_methods {
     """
 }
 
-ch_task_list_methods
-    .tap { ch_list_methods }
-    .map { it -> it[0] }
-    .set { ch_task_names_for_list_metrics }
-
+# transpose (task, methods.txt) into [(task, method), (task, method), ...]
 ch_list_methods
     .map { it -> tuple(
         it[0],
@@ -266,7 +265,13 @@ process method_images {
     """
 }
 
+# send task name to list_metrics
 ch_task_method_image_hash
+    .tap { ch_task_method_image_hash_for_run_method }
+    .map { it -> it[0] }
+    .set { ch_task_names_for_list_metrics }
+
+ch_task_method_image_hash_for_run_method
     .combine( ch_loaded_datasets, by: 0)
     .set { ch_dataset_methods }
 
@@ -341,6 +346,7 @@ process list_metrics {
     """
 }
 
+# transpose (task, metrics.txt) into [(task, metric), (task, metric), ...]
 ch_list_metrics
     .map { it -> tuple(
         it[0],
