@@ -226,7 +226,7 @@ process list_methods {
     val(task_name) from ch_task_names_for_list_methods
 
     output:
-    set val(task_name), file(methods) into ch_task_list_methods
+    set val(task_name), file(methods) into ch_list_methods
 
     script:
     methods = "${task_name}.methods.txt"
