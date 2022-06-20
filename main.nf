@@ -283,7 +283,7 @@ process run_method {
     tag "${task_name}:${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
-    // publishDir "${params.outdir}/results/methods/", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/results/method_versions/", mode: params.publish_dir_mode, pattern: "*.txt"
 
     input:
     set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
@@ -297,32 +297,6 @@ process run_method {
     """
     if [ `pip freeze | grep annoy` ]; then sudo pip install --force annoy; fi
     openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name} > ${method_version}
-    """
-}
-
-ch_ran_methods
-    .tap { ch_ran_methods_to_code_versions }
-    .set { ch_ran_methods_to_metrics }
-
-/*
- * STEP 5.5 - Publish code versions
- */
-
-process publish_code_versions {
-    tag "${task_name}:${method_name}-${dataset_name}"
-    label 'process_low'
-    publishDir "${params.outdir}/method_versions", mode: params.publish_dir_mode
-
-    input:
-    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_in) from ch_ran_methods_to_code_versions
-
-    output:
-    set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version_out) into ch_published_code_versions
-
-    script:
-    method_version_out = "${task_name}.${dataset_name}.${method_name}.method.txt"
-    """
-    cat ${method_version_in} > ${method_version_out}
     """
 }
 
@@ -377,7 +351,7 @@ process metric_images {
 }
 
 ch_task_metric_image_hash
-    .combine(ch_ran_methods_to_metrics, by:0)
+    .combine(ch_ran_methods, by:0)
     .set { ch_dataset_method_metrics }
 
 
