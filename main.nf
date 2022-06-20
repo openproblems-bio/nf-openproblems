@@ -283,7 +283,7 @@ process run_method {
     tag "${task_name}:${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
-    publishDir "${params.outdir}/results/method_versions/", mode: params.publish_dir_mode, pattern: "*.txt"
+    publishDir "${params.outdir}/method_versions/", mode: params.publish_dir_mode, pattern: "*.txt"
 
     input:
     set val(task_name), val(method_name), val(image), val(hash), val(dataset_name), file(dataset_h5ad) from ch_dataset_methods
