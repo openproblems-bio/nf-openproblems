@@ -196,7 +196,7 @@ ch_task_dataset_image_hash
 process load_dataset {
     tag "${task_name}:${dataset_name}:${image}"
     container "${params.container_host}${image}"
-    label 'process_batch'
+    label 'process_batch_highmem'
 
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
