@@ -18,7 +18,7 @@ def helpMessage() {
 
     The typical command for running the pipeline is as follows:
 
-    nextflow run nf-core/openproblems --input '*_R{1,2}.fastq.gz' -profile docker
+    nextflow run openproblems-bio/nf-openproblems -profile test,aws
 
     Mandatory arguments:
       -profile [str]                  Configuration profile to use. Can use multiple (comma separated)
