@@ -296,7 +296,7 @@ process run_method {
     method_version = "${task_name}.${dataset_name}.${method_name}.method.txt"
     """
     if [ `pip freeze | grep annoy` ]; then sudo pip install --force `pip freeze | grep annoy`; fi
-    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output ${method_h5ad} ${method_name} > ${method_version}
+    openproblems-cli run ${params.test_flag} --task ${task_name} --input ${dataset_h5ad} --output-file ${method_h5ad} --version-file ${method_version} ${method_name}
     """
 }
 
