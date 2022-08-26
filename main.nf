@@ -373,7 +373,7 @@ process run_metric {
     script:
     metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
     """
-    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} ${metric_name} > ${metric_txt}
+    openproblems-cli evaluate --task ${task_name} --input ${method_h5ad} --output ${metric_txt} ${metric_name}
     """
 }
 
