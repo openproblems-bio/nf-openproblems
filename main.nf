@@ -58,6 +58,11 @@ if (params.use_test_data) {
 } else {
     params.test_flag = ''
 }
+if (params.ignore_docker_hash) {
+    params.hash_flag = '--ignore-docker-hash'
+} else {
+    params.hash_flag = ''
+}
 
 // Header log info
 log.info nfcoreHeader()
@@ -179,7 +184,7 @@ process dataset_images {
     script:
     """
     IMAGE=`openproblems-cli image --datasets --task ${task_name} ${dataset_name} | tr -d "\n"`
-    HASH=`openproblems-cli hash --datasets --task ${task_name} ${dataset_name}`
+    HASH=`openproblems-cli hash ${params.hash_flag} --datasets --task ${task_name} ${dataset_name}`
     """
 }
 
@@ -261,7 +266,7 @@ process method_images {
     script:
     """
     IMAGE=`openproblems-cli image --methods --task ${task_name} ${method_name} | tr -d "\n"`
-    HASH=`openproblems-cli hash --methods --task ${task_name} ${method_name}`
+    HASH=`openproblems-cli hash ${params.hash_flag} --methods --task ${task_name} ${method_name}`
     """
 }
 
@@ -346,7 +351,7 @@ process metric_images {
     script:
     """
     IMAGE=`openproblems-cli image --metrics --task ${task_name} ${metric_name} | tr -d "\n"`
-    HASH=`openproblems-cli hash --metrics --task ${task_name} ${metric_name}`
+    HASH=`openproblems-cli hash ${params.hash_flag} --metrics --task ${task_name} ${metric_name}`
     """
 }
 
