@@ -58,8 +58,8 @@ if (params.use_test_data) {
 } else {
     params.test_flag = ''
 }
-if (params.ignore_docker_hash) {
-    params.hash_flag = '--ignore-docker'
+if (params.ignore_context) {
+    params.hash_flag = '--ignore-context'
 } else {
     params.hash_flag = ''
 }
