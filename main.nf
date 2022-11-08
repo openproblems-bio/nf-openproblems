@@ -59,7 +59,7 @@ if (params.use_test_data) {
     params.test_flag = ''
 }
 if (params.ignore_docker_hash) {
-    params.hash_flag = '--ignore-docker-hash'
+    params.hash_flag = '--ignore-docker'
 } else {
     params.hash_flag = ''
 }
