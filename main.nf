@@ -8,6 +8,7 @@
  https://github.com/nf-core/openproblems
 ----------------------------------------------------------------------------------------
 */
+nextflow.enable.dsl = 1
 
 def helpMessage() {
     // TODO nf-core: Add to this help message with new command line parameters
