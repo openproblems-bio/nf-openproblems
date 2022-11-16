@@ -212,6 +212,7 @@ process load_dataset {
     output:
     set val(task_name), val(dataset_name), file(dataset_h5ad) into ch_loaded_datasets, ch_loaded_datasets_to_print
 
+    shell = ['/bin/bash', '-euo', 'pipefail']
     script:
     dataset_h5ad = "${task_name}.${dataset_name}.dataset.h5ad"
     """
@@ -297,6 +298,7 @@ process run_method {
     output:
     set val(task_name), val(dataset_name), val(method_name), file(method_h5ad), file(method_version) into ch_ran_methods
 
+    shell = ['/bin/bash', '-euo', 'pipefail']
     script:
     method_h5ad = "${task_name}.${dataset_name}.${method_name}.method.h5ad"
     method_version = "${task_name}.${dataset_name}.${method_name}.method.txt"
@@ -376,6 +378,7 @@ process run_metric {
     output:
     set val(task_name), val(dataset_name), val(method_name), val(metric_name), file(metric_txt) into ch_evaluated_metrics
 
+    shell = ['/bin/bash', '-euo', 'pipefail']
     script:
     metric_txt = "${task_name}.${dataset_name}.${method_name}.${metric_name}.metric.txt"
     """
