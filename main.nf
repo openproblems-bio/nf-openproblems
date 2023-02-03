@@ -101,6 +101,7 @@ checkHostname()
  */
 process list_tasks {
     label 'process_low'
+    queue 'spot-priority6'
     // publishDir "${params.outdir}/list", mode: params.publish_dir_mode
 
     output:
@@ -123,6 +124,7 @@ ch_list_tasks
 process list_datasets {
     tag "${task_name}"
     label 'process_low'
+    queue 'spot-priority5'
     // publishDir "${params.outdir}/list/datasets", mode: params.publish_dir_mode
 
     input:
@@ -153,6 +155,8 @@ ch_list_datasets
 process dataset_images {
     tag "${task_name}:${dataset_name}"
     label 'process_low'
+    queue 'spot-priority5'
+    
 
     input:
     set val(task_name), val(dataset_name) from ch_task_dataset_pairs
@@ -181,6 +185,7 @@ process load_dataset {
     tag "${task_name}:${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
+    queue 'spot-priority6'
 
     // publishDir "${params.outdir}/results/datasets/", mode: params.publish_dir_mode
 
@@ -205,6 +210,7 @@ process load_dataset {
 process list_methods {
     tag "${task_name}"
     label 'process_low'
+    queue 'spot-priority3'
     // publishDir "${params.outdir}/list/methods", mode: params.publish_dir_mode
 
     input:
@@ -236,6 +242,7 @@ ch_list_methods
 process method_images {
     tag "${task_name}:${method_name}"
     label 'process_low'
+    queue 'spot-priority3'
 
     input:
     set val(task_name), val(method_name) from ch_task_method_pairs
@@ -268,6 +275,7 @@ process run_method {
     tag "${task_name}:${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
+    queue 'spot-priority4'
     publishDir "${params.outdir}/method_versions/", mode: params.publish_dir_mode, pattern: "*.txt"
 
     input:
@@ -292,6 +300,7 @@ process run_method {
 process list_metrics {
     tag "${task_name}"
     label 'process_low'
+    queue 'spot-priority1'
     // publishDir "${params.outdir}/list/metrics", mode: params.publish_dir_mode
 
     input:
@@ -322,6 +331,7 @@ ch_list_metrics
 process metric_images {
     tag "${task_name}:${metric_name}"
     label 'process_low'
+    queue 'spot-priority1'
 
     input:
     set val(task_name), val(metric_name) from ch_task_metric_pairs
@@ -348,6 +358,7 @@ process run_metric {
     tag "${task_name}:${metric_name}-${method_name}-${dataset_name}:${image}"
     container "${params.container_host}${image}"
     label 'process_batch'
+    queue 'spot-priority2'
     publishDir "${params.outdir}/metrics", mode: params.publish_dir_mode
 
     input:
@@ -370,6 +381,7 @@ process run_metric {
 process get_software_versions {
     publishDir "${params.outdir}/pipeline_info", mode: params.publish_dir_mode
     label 'process_low'
+    queue 'spot-priority1'
 
     output:
     file "software_versions.csv"
