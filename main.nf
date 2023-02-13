@@ -390,10 +390,10 @@ process get_software_versions {
     """
     echo $workflow.manifest.version > v_pipeline.txt
     echo $workflow.nextflow.version > v_nextflow.txt
-    python3 --version > v_python.txt 2>&1
-    openproblems-cli --version > v_openproblems.txt
-    bash --version | head -n 1 > v_bash.txt
-    javac -version || echo "" | head -n 1 > v_java.txt
+    python3 --version || echo "Python not_found" | tee v_python.txt 2>&1
+    openproblems-cli --version || echo "not_found" | tee v_openproblems.txt 2>&1
+    bash --version | head -n 1 | tee v_bash.txt
+    javac -version || echo "not_found" | head -n 1 | tee v_java.txt 2>&1
     scrape_software_versions.py
     """
 }
